@@ -94,8 +94,8 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
 
   return (
     <div className={cn("bg-white border border-slate-100 shadow-xl rounded-2xl overflow-hidden", className)}>
-      <div className="bg-emerald-50 p-6 border-bottom border-emerald-100">
-        <h3 className="text-xl font-bold text-slate-800">Book Your Service</h3>
+      <div className="bg-emerald-50 p-5 border-bottom border-emerald-100">
+        <h3 className="text-lg font-bold text-slate-800">Book Your Service</h3>
         <p className="text-sm text-slate-600">Quick 2-step booking process</p>
         
         {/* Progress Bar */}
@@ -122,7 +122,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                 <input
                   type="text"
                   placeholder="John Doe"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base"
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                 />
@@ -135,7 +135,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                 <input
                   type="email"
                   placeholder="john@example.com"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base"
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
                 />
@@ -148,7 +148,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                 <input
                   type="tel"
                   placeholder="081 234 5678"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base"
                   value={formData.phone}
                   onChange={e => setFormData({...formData, phone: e.target.value})}
                 />
@@ -159,7 +159,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                   <MapPin size={16} className="text-emerald-500" /> Location
                 </label>
                 <select
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all bg-white"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all bg-white text-base"
                   value={formData.location}
                   onChange={e => setFormData({...formData, location: e.target.value})}
                 >
@@ -187,7 +187,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
             >
               <div className="space-y-3">
                 <label className="text-sm font-medium text-slate-700">Select Services</label>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-1 gap-2">
                   {services.map(service => (
                     <label 
                       key={service}
@@ -220,7 +220,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                 </label>
                 <input
                   type="date"
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base"
                   value={formData.date}
                   onChange={e => setFormData({...formData, date: e.target.value})}
                 />

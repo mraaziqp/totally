@@ -11,7 +11,24 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-white text-slate-800 antialiased font-sans;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+
+  input, select, textarea, button {
+    touch-action: manipulation;
+    font-size: 16px; /* prevents iOS zoom on focus */
+  }
+
+  * {
+    -webkit-overflow-scrolling: touch;
   }
 }
