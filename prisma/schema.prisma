@@ -1,0 +1,86 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id                     String    @id @default(cuid())
+  slug                   String    @unique
+  name                   String
+  themeColor             String    @default("#000000")
+  contactPhone           String
+  contactEmail           String
+  heroHeadline           String?
+  tagline                String?
+  missionText            String?
+  aboutUsText            String?
+  heroImageUrl           String?
+  servicesHeading        String?   @default("Our Specialised Services")
+  aboutHeading           String?   @default("Our Journey & Core Values")
+  testimonialText        String?
+  testimonialAuthor      String?
+  testimonialAuthorRole  String?
+  services               Service[]
+  products               Product[]
+  orders                 Order[]
+  leads                  Lead[]
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  name        String
+  description String
+  price       Decimal?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  storeId     String
+  store       Store    @relation(fields: [storeId], references: [id])
+  name        String
+  description String
+  price       Decimal
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+  customerName  String
+  customerEmail String
+  customerPhone String
+  location      String
+  status        String   @default("PENDING")
+  requestedDate DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Lead {
+  id            String   @id @default(cuid())
+  storeId       String
+  store         Store    @relation(fields: [storeId], references: [id])
+  customerName  String
+  customerEmail String
+  customerPhone String
+  location      String
+  status        String   @default("NEW")
+  requestedDate DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
