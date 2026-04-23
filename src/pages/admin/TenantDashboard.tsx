@@ -13,7 +13,8 @@ import {
   Briefcase,
   AlertCircle,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  LogOut
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -81,6 +82,13 @@ export default function TenantDashboard() {
     }
   }, [storeSlug, isAuthenticated]);
 
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPassword('');
+    setLeads([]);
+    setStoreData(null);
+  };
+
   const handleCmsUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -114,7 +122,7 @@ export default function TenantDashboard() {
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">{storeSlug?.replace('-', ' ').toUpperCase()} ADMIN</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-2">{storeSlug?.replace(/-/g, ' ').toUpperCase()} ADMIN</h2>
           <p className="text-slate-500 mb-8 text-sm">Enter the tenant password to manage your unit</p>
           <div className="space-y-4">
             <input 
@@ -174,25 +182,34 @@ export default function TenantDashboard() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
-            <button 
-              onClick={() => setActiveTab('leads')}
-              className={cn(
-                "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-                activeTab === 'leads' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
             >
-              <Users size={18} /> Lead Manager
+              <LogOut size={16} /> Logout
             </button>
-            <button 
-              onClick={() => setActiveTab('cms')}
-              className={cn(
-                "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-                activeTab === 'cms' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
-              )}
-            >
-              <Layout size={18} /> Storefront Editor
-            </button>
+
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
+              <button 
+                onClick={() => setActiveTab('leads')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                  activeTab === 'leads' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Users size={18} /> Lead Manager
+              </button>
+              <button 
+                onClick={() => setActiveTab('cms')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                  activeTab === 'cms' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Layout size={18} /> Storefront Editor
+              </button>
+            </div>
           </div>
         </div>
       </header>

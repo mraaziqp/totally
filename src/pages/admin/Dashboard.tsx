@@ -14,7 +14,6 @@ import {
   Clock,
   AlertCircle,
   LayoutDashboard,
-  Settings,
   LogOut,
   ChevronDown,
   ArrowLeft,
@@ -29,6 +28,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const stores = [
     { id: 'deep-cleaning', name: 'Deep Cleaning' },
@@ -62,7 +62,7 @@ export default function AdminDashboard() {
   const stats = [
     { label: 'New Leads (Total)', value: leads.length.toString(), change: 'Live', icon: <Users size={20} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
     { label: 'Active Jobs', value: leads.filter(l => l.status === 'NEW').length.toString(), change: 'Pending', icon: <Briefcase size={20} />, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { label: 'Total Revenue (Est)', value: 'R ---', change: 'Beta', icon: <TrendingUp size={20} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Total Revenue (Est)', value: 'Coming Soon', change: 'Tracking TBD', icon: <TrendingUp size={20} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
 
   const getStatusStyles = (status: string) => {
@@ -72,6 +72,20 @@ export default function AdminDashboard() {
       case 'COMPLETED': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
       default: return 'bg-slate-50 text-slate-700 border-slate-100';
     }
+  };
+
+  const filteredLeads = searchQuery.trim()
+    ? leads.filter(l =>
+        l.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        l.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        l.location?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : leads;
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setPassword('');
+    setLeads([]);
   };
 
   const getStatusIcon = (status: string) => {
@@ -146,19 +160,20 @@ export default function AdminDashboard() {
           <a href="#" className="flex items-center gap-3 p-3 text-emerald-600 bg-emerald-50 rounded-xl font-semibold">
             <LayoutDashboard size={20} /> Dashboard
           </a>
-          <a href="#" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-            <Users size={20} /> Customers
-          </a>
-          <a href="#" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-            <Briefcase size={20} /> Jobs List
-          </a>
-          <a href="#" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors">
-            <Settings size={20} /> Settings
-          </a>
+          <div className="pt-2 pb-1 px-3 text-[10px] font-black uppercase tracking-widest text-slate-300">Stores</div>
+          <Link to="/admin/deep-cleaning" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors text-sm">
+            <Briefcase size={16} /> Deep Cleaning
+          </Link>
+          <Link to="/admin/pressure-cleaning" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors text-sm">
+            <Briefcase size={16} /> High Pressure
+          </Link>
+          <Link to="/admin/gifting" className="flex items-center gap-3 p-3 text-slate-600 hover:bg-emerald-50 hover:text-emerald-700 rounded-xl transition-colors text-sm">
+            <Briefcase size={16} /> Gifting
+          </Link>
         </nav>
 
         <div className="p-4 border-t border-slate-100">
-          <button className="flex items-center gap-3 p-3 text-slate-600 hover:text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-all">
+          <button onClick={handleLogout} className="flex items-center gap-3 p-3 text-slate-600 hover:text-rose-600 hover:bg-rose-50 w-full rounded-xl transition-all">
             <LogOut size={20} /> Logout
           </button>
         </div>
@@ -180,12 +195,14 @@ export default function AdminDashboard() {
                   type="text" 
                   placeholder="Search leads..." 
                   className="pl-10 pr-4 py-2 border border-slate-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all w-64 bg-slate-50"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
                 />
              </div>
              <div className="flex items-center gap-3 pl-4 border-l border-slate-200">
                 <div className="text-right">
-                   <p className="text-sm font-bold text-slate-800">Admin User</p>
-                   <p className="text-xs text-slate-500">Cape Town Central</p>
+                   <p className="text-sm font-bold text-slate-800">TotalŸ Admin</p>
+                   <p className="text-xs text-slate-500">cleandeep.co.za</p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-slate-200 border-2 border-white shadow-sm" />
              </div>
@@ -271,6 +288,7 @@ export default function AdminDashboard() {
                   <thead>
                     <tr className="bg-slate-50/50 text-[10px] uppercase font-bold tracking-widest text-slate-400 border-b border-slate-100">
                       <th className="px-6 py-4">Customer</th>
+                      <th className="px-6 py-4">Phone</th>
                       <th className="px-6 py-4">Location</th>
                       <th className="px-6 py-4">Date</th>
                       <th className="px-6 py-4">Status</th>
@@ -278,7 +296,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
-                    {leads.map((lead, idx) => (
+                    {filteredLeads.map((lead, idx) => (
                       <motion.tr 
                         key={lead.id}
                         initial={{ opacity: 0 }}
@@ -296,6 +314,9 @@ export default function AdminDashboard() {
                                <p className="text-xs text-slate-500">{lead.customerEmail}</p>
                              </div>
                           </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm text-slate-600">{lead.customerPhone || '—'}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-1.5 text-slate-500">
@@ -330,7 +351,7 @@ export default function AdminDashboard() {
               )}
             </div>
             <div className="p-6 bg-slate-50/30 border-t border-slate-100 text-center">
-               <p className="text-xs text-slate-400 font-medium tracking-wide">Showing {leads.length} request entries in command center</p>
+               <p className="text-xs text-slate-400 font-medium tracking-wide">Showing {filteredLeads.length} of {leads.length} request entries in command center</p>
             </div>
           </div>
 
