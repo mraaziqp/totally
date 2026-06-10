@@ -9,7 +9,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const store = await prisma.store.findUnique({ where: { slug } });
+      const store = await prisma.store.findUnique({ where: { slug }, include: { products: { orderBy: { createdAt: 'asc' } } } });
       if (!store) return res.status(404).json({ error: 'Store not found' });
       return res.json(store);
     } catch (error) {
@@ -32,26 +32,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         missionText,
         aboutUsText,
         heroImageUrl,
-        servicesHeading,
+        servicesHeadline,
+        servicesDescription,
         aboutHeading,
         testimonialText,
         testimonialAuthor,
         testimonialAuthorRole,
+        galleryImages,
+        deliveryNote,
+        contactPhone,
+        contactEmail,
+        pageTitle,
+        pageDescription,
       } = req.body;
 
       const store = await prisma.store.update({
         where: { slug },
+        include: { products: { orderBy: { createdAt: 'asc' } } },
         data: {
           heroHeadline,
           tagline,
           missionText,
           aboutUsText,
           heroImageUrl,
-          servicesHeading,
+          servicesHeadline,
+          servicesDescription,
           aboutHeading,
           testimonialText,
           testimonialAuthor,
           testimonialAuthorRole,
+          galleryImages: galleryImages ?? undefined,
+          deliveryNote,
+          contactPhone: contactPhone ?? undefined,
+          contactEmail: contactEmail ?? undefined,
+          pageTitle: pageTitle ?? undefined,
+          pageDescription: pageDescription ?? undefined,
         },
       });
 

@@ -4,6 +4,17 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, CheckCircle2, Star, Sparkles, Droplets, Car, Sofa, Scissors, Home as HomeIcon, ArrowLeft, Loader2 } from 'lucide-react';
 import BookingForm from '../../components/BookingForm';
 
+// Map DB service names → icons
+const SERVICE_ICONS: Record<string, React.ElementType> = {
+  'Carpets':                       Sparkles,
+  'Mattress':                      CheckCircle2,
+  'Vehicles':                      Car,
+  'Rug Rejuvenation':              Scissors,
+  'High Pressure (Outdoor)':       Droplets,
+  'Upholstery (Couches & Chairs)': Sofa,
+  'Curtains':                      Sparkles,
+};
+
 export default function DeepCleaning() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -11,53 +22,29 @@ export default function DeepCleaning() {
   useEffect(() => {
     fetch('/api/stores/deep-cleaning')
       .then(res => res.json())
-      .then(data => {
-        setStoreData(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching store data:', err);
-        setLoading(false);
-      });
+      .then(data => { setStoreData(data); setLoading(false); })
+      .catch(err => { console.error('Error fetching store data:', err); setLoading(false); });
   }, []);
 
-  const services = [
-    {
-      title: "Carpets",
-      description: "Deep cleaning that removes embedded dirt, allergens, and tough stains for a fresh look and feel.",
-      icon: Sparkles
-    },
-    {
-      title: "Mattress",
-      description: "Thorough sanitisation to eliminate dust mites, bacteria, and allergens, ensuring a healthier sleep.",
-      icon: CheckCircle2
-    },
-    {
-      title: "Vehicles",
-      description: "Interior deep cleaning that lifts stains from seats, floors, and roofs, leaving your car spotless.",
-      icon: Car
-    },
-    {
-      title: "Rug Rejuvenation",
-      description: "Specialised treatment to revive delicate rugs, restoring their original vibrant patterns and texture.",
-      icon: Scissors
-    },
-    {
-      title: "High Pressure (Outdoor)",
-      description: "Powerful cleaning for roofs, windows, paving, and exterior walls to remove mould and grime.",
-      icon: Droplets
-    },
-    {
-      title: "Upholstery (Couches & Chairs)",
-      description: "Deep fabric cleaning that removes odours and stains, giving new life to your lounge and dining sets.",
-      icon: Sofa
-    },
-    {
-      title: "Curtains",
-      description: "Gentle yet effective cleaning that removes dust and pollutants without harming the fabric.",
-      icon: Sparkles
-    }
+  // Fallback hardcoded services (used only if DB returns none)
+  const fallbackServices = [
+    { title: 'Carpets',                       description: 'Deep cleaning that removes embedded dirt, allergens, and tough stains for a fresh look and feel.',          icon: Sparkles,      price: null },
+    { title: 'Mattress',                      description: 'Thorough sanitisation to eliminate dust mites, bacteria, and allergens, ensuring a healthier sleep.',       icon: CheckCircle2,  price: null },
+    { title: 'Vehicles',                      description: 'Interior deep cleaning that lifts stains from seats, floors, and roofs, leaving your car spotless.',        icon: Car,           price: null },
+    { title: 'Rug Rejuvenation',              description: 'Specialised treatment to revive delicate rugs, restoring their original vibrant patterns and texture.',     icon: Scissors,      price: null },
+    { title: 'High Pressure (Outdoor)',       description: 'Powerful cleaning for roofs, windows, paving, and exterior walls to remove mould and grime.',              icon: Droplets,      price: null },
+    { title: 'Upholstery (Couches & Chairs)', description: 'Deep fabric cleaning that removes odours and stains, giving new life to your lounge and dining sets.',     icon: Sofa,          price: null },
+    { title: 'Curtains',                      description: 'Gentle yet effective cleaning that removes dust and pollutants without harming the fabric.',                icon: Sparkles,      price: null },
   ];
+
+  const displayServices = storeData?.services?.length > 0
+    ? storeData.services.map((s: any) => ({
+        title: s.name,
+        description: s.description,
+        icon: SERVICE_ICONS[s.name] || Sparkles,
+        price: s.price,
+      }))
+    : fallbackServices;
 
   if (loading) {
     return (
@@ -169,7 +156,7 @@ export default function DeepCleaning() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
-            {services.map((item, index) => (
+            {displayServices.map((item, index) => (
               <motion.div 
                 key={item.title}
                 initial={{ opacity: 0, y: 20 }}
@@ -182,14 +169,53 @@ export default function DeepCleaning() {
                   <item.icon size={28} />
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 mb-3">{item.title}</h3>
-                <p className="text-slate-600 leading-relaxed text-sm">
-                  {item.description}
-                </p>
+                <p className="text-slate-600 leading-relaxed text-sm">{item.description}</p>
+                {item.price && (
+                  <p className="mt-4 text-emerald-600 font-bold text-lg">From R{Number(item.price).toFixed(0)}</p>
+                )}
               </motion.div>
             ))}
           </div>
         </div>
       </section>
+
+      {/* Before & After Gallery */}
+      {storeData?.galleryImages && (storeData.galleryImages as any[]).length > 0 && (
+        <section className="py-14 px-4 sm:px-6 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <span className="inline-block px-3 py-1.5 mb-4 text-xs font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 rounded-full">
+                Real Results
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-3 tracking-tight">See the TotalLŸ Difference</h2>
+              <p className="text-slate-500 text-sm sm:text-base max-w-xl mx-auto">Before &amp; after — every job, every time.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(storeData.galleryImages as { url: string; caption?: string }[]).map((img, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="relative group rounded-2xl overflow-hidden bg-slate-100 aspect-video"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.caption || `Result ${i + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {img.caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                      <p className="text-white text-xs font-semibold">{img.caption}</p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* About Section */}
       <section id="about" className="py-14 px-4 sm:px-6 bg-white overflow-hidden relative">

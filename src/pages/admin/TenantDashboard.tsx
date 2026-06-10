@@ -14,7 +14,9 @@ import {
   AlertCircle,
   FileText,
   Image as ImageIcon,
-  LogOut
+  LogOut,
+  X,
+  Plus
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
@@ -27,19 +29,26 @@ export default function TenantDashboard() {
   const [saving, setSaving] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [galleryImages, setGalleryImages] = useState<{ url: string; caption: string }[]>([]);
 
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
+    pageTitle: '',
+    pageDescription: '',
     heroHeadline: '',
     tagline: '',
     missionText: '',
-    aboutUsText: '',
     heroImageUrl: '',
-    servicesHeading: 'Our Specialised Services',
+    servicesHeadline: 'Our Specialised Services',
+    servicesDescription: '',
     aboutHeading: 'Our Journey & Core Values',
+    aboutUsText: '',
     testimonialText: '',
     testimonialAuthor: '',
-    testimonialAuthorRole: ''
+    testimonialAuthorRole: '',
+    deliveryNote: '',
+    contactPhone: '',
+    contactEmail: '',
   });
 
   const fetchData = async () => {
@@ -58,17 +67,24 @@ export default function TenantDashboard() {
       setStoreData(storeInfo);
       
       setCmsForm({
+        pageTitle: storeInfo.pageTitle || '',
+        pageDescription: storeInfo.pageDescription || '',
         heroHeadline: storeInfo.heroHeadline || '',
         tagline: storeInfo.tagline || '',
         missionText: storeInfo.missionText || '',
-        aboutUsText: storeInfo.aboutUsText || '',
         heroImageUrl: storeInfo.heroImageUrl || '',
-        servicesHeading: storeInfo.servicesHeading || 'Our Specialised Services',
+        servicesHeadline: storeInfo.servicesHeadline || 'Our Specialised Services',
+        servicesDescription: storeInfo.servicesDescription || '',
         aboutHeading: storeInfo.aboutHeading || 'Our Journey & Core Values',
+        aboutUsText: storeInfo.aboutUsText || '',
         testimonialText: storeInfo.testimonialText || '',
         testimonialAuthor: storeInfo.testimonialAuthor || '',
-        testimonialAuthorRole: storeInfo.testimonialAuthorRole || ''
+        testimonialAuthorRole: storeInfo.testimonialAuthorRole || '',
+        deliveryNote: storeInfo.deliveryNote || '',
+        contactPhone: storeInfo.contactPhone || '',
+        contactEmail: storeInfo.contactEmail || '',
       });
+      setGalleryImages(Array.isArray(storeInfo.galleryImages) ? storeInfo.galleryImages : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -96,7 +112,7 @@ export default function TenantDashboard() {
       const response = await fetch(`/api/stores/${storeSlug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
-        body: JSON.stringify(cmsForm)
+        body: JSON.stringify({ ...cmsForm, galleryImages })
       });
       if (response.ok) {
         const updated = await response.json();
@@ -310,6 +326,37 @@ export default function TenantDashboard() {
           >
             <div className="lg:col-span-2 space-y-8">
               <form onSubmit={handleCmsUpdate} className="space-y-8">
+                {/* 0. Page Settings */}
+                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
+                  <div className={cn("absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10", brandColor)} />
+                  <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                    <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white", brandColor)}>0</span>
+                    Page Settings
+                  </h3>
+
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Page Title (Browser Tab & Meta)</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                        placeholder="e.g. Premium Cleaning Services | Clean Deep"
+                        value={cmsForm.pageTitle}
+                        onChange={e => setCmsForm({...cmsForm, pageTitle: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Page Description (Meta/SEO)</label>
+                      <textarea
+                        className="w-full h-20 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all resize-none"
+                        placeholder="Brief description for search engines..."
+                        value={cmsForm.pageDescription}
+                        onChange={e => setCmsForm({...cmsForm, pageDescription: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* 1. Hero Section */}
                 <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm relative overflow-hidden">
                   <div className={cn("absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10", brandColor)} />
@@ -319,6 +366,29 @@ export default function TenantDashboard() {
                   </h3>
                   
                   <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Contact Phone / WhatsApp</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. 072 359 1276"
+                          value={cmsForm.contactPhone}
+                          onChange={e => setCmsForm({...cmsForm, contactPhone: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Contact Email</label>
+                        <input
+                          type="email"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. info@totally.co.za"
+                          value={cmsForm.contactEmail}
+                          onChange={e => setCmsForm({...cmsForm, contactEmail: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Hero Banner Image (URL)</label>
                       <div className="flex gap-4">
@@ -371,6 +441,17 @@ export default function TenantDashboard() {
                         onChange={e => setCmsForm({...cmsForm, missionText: e.target.value})}
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Delivery / Availability Note <span className="text-rose-400">(Gifting)</span></label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                        placeholder="e.g. Free delivery within Panorama & Plattekloof area"
+                        value={cmsForm.deliveryNote}
+                        onChange={e => setCmsForm({...cmsForm, deliveryNote: e.target.value})}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -380,16 +461,25 @@ export default function TenantDashboard() {
                     <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white", brandColor)}>2</span>
                     Services Grid
                   </h3>
-                  
+
                   <div className="space-y-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Section Title</label>
-                      <input 
-                        type="text" 
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Section Heading</label>
+                      <input
+                        type="text"
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
                         placeholder="e.g. Our Specialised Services"
-                        value={cmsForm.servicesHeading}
-                        onChange={e => setCmsForm({...cmsForm, servicesHeading: e.target.value})}
+                        value={cmsForm.servicesHeadline}
+                        onChange={e => setCmsForm({...cmsForm, servicesHeadline: e.target.value})}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Section Description (Optional)</label>
+                      <textarea
+                        className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all resize-none"
+                        placeholder="Brief intro to your services..."
+                        value={cmsForm.servicesDescription}
+                        onChange={e => setCmsForm({...cmsForm, servicesDescription: e.target.value})}
                       />
                     </div>
                   </div>
@@ -399,7 +489,7 @@ export default function TenantDashboard() {
                 <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
                   <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
                     <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white", brandColor)}>3</span>
-                    About & Values
+                    About & Values Section
                   </h3>
                   
                   <div className="space-y-6">
@@ -465,6 +555,74 @@ export default function TenantDashboard() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* 5. Gallery Images */}
+                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                    <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white", brandColor)}>5</span>
+                    Gallery Images & Media
+                  </h3>
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 space-y-2">
+                    <p className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                      <ImageIcon size={14} /> How to Add Images
+                    </p>
+                    <ul className="text-xs text-slate-600 space-y-1 list-disc pl-5">
+                      <li><strong>Method 1:</strong> Paste a direct image URL (e.g., from Unsplash, Imgur, or your hosting)</li>
+                      <li><strong>Method 2:</strong> Upload files to <code className="bg-white px-2 py-0.5 rounded text-slate-500">public/images/{storeSlug}/</code> folder, then reference as <code className="bg-white px-2 py-0.5 rounded text-slate-500">/images/{storeSlug}/photo.jpg</code></li>
+                      <li><strong>First image:</strong> Will display larger (featured) on service pages</li>
+                      <li><strong>Captions:</strong> Optional - adds text overlay to images in gallery</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-3 mb-4">
+                    {galleryImages.map((img, idx) => (
+                      <div key={idx} className="flex gap-3 items-center">
+                        {img.url && (
+                          <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
+                            <img src={img.url} alt="" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <input
+                          type="text"
+                          placeholder="Image URL (https://... or /images/gifting/photo.jpg)"
+                          className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
+                          value={img.url}
+                          onChange={e => {
+                            const updated = [...galleryImages];
+                            updated[idx] = { ...updated[idx], url: e.target.value };
+                            setGalleryImages(updated);
+                          }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Caption (optional)"
+                          className="w-40 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
+                          value={img.caption}
+                          onChange={e => {
+                            const updated = [...galleryImages];
+                            updated[idx] = { ...updated[idx], caption: e.target.value };
+                            setGalleryImages(updated);
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setGalleryImages(galleryImages.filter((_, i) => i !== idx))}
+                          className="w-9 h-9 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center shrink-0"
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setGalleryImages([...galleryImages, { url: '', caption: '' }])}
+                    className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Plus size={16} /> Add Image
+                  </button>
                 </div>
 
                 <div className="sticky bottom-6 z-20">

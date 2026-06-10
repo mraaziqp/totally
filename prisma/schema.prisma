@@ -22,11 +22,16 @@ model Store {
   missionText            String?
   aboutUsText            String?
   heroImageUrl           String?
-  servicesHeading        String?   @default("Our Specialised Services")
+  servicesHeadline       String?   @default("Our Specialised Services")
+  servicesDescription    String?
   aboutHeading           String?   @default("Our Journey & Core Values")
   testimonialText        String?
   testimonialAuthor      String?
   testimonialAuthorRole  String?
+  galleryImages          Json?
+  deliveryNote           String?
+  pageTitle              String?
+  pageDescription        String?
   services               Service[]
   products               Product[]
   orders                 Order[]

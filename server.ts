@@ -3,6 +3,7 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
+import 'dotenv/config';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,18 @@ async function startServer() {
     }
   });
 
+  // Admin: Auth
+  app.post("/api/admin/auth", (req, res) => {
+    const { password } = req.body;
+    if (!process.env.ADMIN_PASSWORD) {
+      return res.status(500).json({ error: 'Server misconfigured — ADMIN_PASSWORD not set in .env' });
+    }
+    if (password === process.env.ADMIN_PASSWORD) {
+      return res.status(200).json({ ok: true });
+    }
+    return res.status(401).json({ error: 'Incorrect password' });
+  });
+
   // Admin: Get all leads
   app.get("/api/admin/leads", async (req, res) => {
     try {
@@ -80,7 +93,8 @@ async function startServer() {
     try {
       const { slug } = req.params;
       const store = await prisma.store.findUnique({
-        where: { slug }
+        where: { slug },
+        include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
       });
       if (!store) {
         return res.status(404).json({ error: "Store not found" });
@@ -106,11 +120,16 @@ async function startServer() {
         aboutHeading,
         testimonialText,
         testimonialAuthor,
-        testimonialAuthorRole
+        testimonialAuthorRole,
+        galleryImages,
+        deliveryNote,
+        contactPhone,
+        contactEmail,
       } = req.body;
       
       const store = await prisma.store.update({
         where: { slug },
+        include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
         data: {
           heroHeadline,
           tagline,
@@ -121,7 +140,11 @@ async function startServer() {
           aboutHeading,
           testimonialText,
           testimonialAuthor,
-          testimonialAuthorRole
+          testimonialAuthorRole,
+          galleryImages: galleryImages ?? undefined,
+          deliveryNote,
+          ...(contactPhone && { contactPhone }),
+          ...(contactEmail && { contactEmail }),
         }
       });
       

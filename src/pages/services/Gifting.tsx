@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { ShoppingBag, Star, Layout, Briefcase, Scissors, Heart, ArrowLeft, Mail, Phone, Loader2 } from 'lucide-react';
+import { ShoppingBag, Star, Layout, Briefcase, Scissors, Heart, ArrowLeft, Mail, Phone, Loader2, MessageCircle, Tag, MapPin } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import OrderInquiryForm from '../../components/OrderInquiryForm';
 
@@ -176,6 +176,108 @@ export default function Gifting() {
                 </div>
               </motion.div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Product Gallery, Pricing & WhatsApp CTA */}
+      <section className="py-14 px-4 sm:px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 mb-4 text-xs font-bold uppercase tracking-wider text-rose-600 bg-rose-50 rounded-full">
+              <Tag size={12} /> Prices Effective April 2026
+            </span>
+            <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
+              Order Your Personalised Piece
+            </h2>
+            <p className="text-slate-500 max-w-lg mx-auto text-sm sm:text-base leading-relaxed">
+              Handcrafted Bags &amp; Musallahs (Salaat Mats) — each personalised with stunning Arabic calligraphy.
+            </p>
+          </div>
+
+          {/* Gallery Grid */}
+          {storeData?.galleryImages && (storeData.galleryImages as any[]).length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-14">
+              {(storeData.galleryImages as { url: string; caption?: string }[]).map((img, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05 }}
+                  className={cn(
+                    "relative group rounded-2xl overflow-hidden bg-rose-50",
+                    i === 0 ? "col-span-2 row-span-2 aspect-square" : "aspect-square"
+                  )}
+                >
+                  <img
+                    src={img.url}
+                    alt={img.caption || `Product ${i + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {img.caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-white text-xs font-semibold">{img.caption}</p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )}
+
+          {/* Pricing Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-3xl mx-auto mb-12">
+            {(storeData?.products && storeData.products.length > 0
+              ? storeData.products
+              : [
+                  { name: "Madrassa Bags", price: "290", description: "Personalised velvet bag with gold Arabic calligraphy" },
+                  { name: "Musallahs – Adult", price: "250", description: "Personalised salaat mat with gold calligraphy & fringe" },
+                  { name: "Musallahs – Kids", price: "180", description: "Personalised kids salaat mat" },
+                ]
+            ).map((product: any, i: number) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                whileHover={{ y: -4 }}
+                className="bg-rose-50 border border-rose-100 rounded-2xl p-6 text-center shadow-sm hover:shadow-md transition-all"
+              >
+                <h3 className="font-bold text-slate-900 mb-3 text-lg">{product.name}</h3>
+                <p className="text-4xl font-black text-rose-500 mb-2">R{product.price}</p>
+                {product.description && (
+                  <p className="text-xs text-slate-500 leading-relaxed">{product.description}</p>
+                )}
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Delivery Note */}
+          {storeData?.deliveryNote ? (
+            <div className="max-w-xl mx-auto mb-10 bg-emerald-50 border border-emerald-100 rounded-2xl px-6 py-4 text-center flex items-center justify-center gap-3">
+              <MapPin size={16} className="text-emerald-600 shrink-0" />
+              <p className="text-sm font-semibold text-emerald-700">{storeData.deliveryNote}</p>
+            </div>
+          ) : (
+            <div className="max-w-xl mx-auto mb-10 bg-emerald-50 border border-emerald-100 rounded-2xl px-6 py-4 text-center flex items-center justify-center gap-3">
+              <MapPin size={16} className="text-emerald-600 shrink-0" />
+              <p className="text-sm font-semibold text-emerald-700">Free delivery within the Panorama &amp; Plattekloof area</p>
+            </div>
+          )}
+
+          {/* WhatsApp CTA */}
+          <div className="text-center">
+            <a
+              href={`https://wa.me/${(storeData?.contactPhone || '0718789141').replace(/^0/, '27').replace(/[\s-]/g, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 bg-[#25D366] text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-[#1ebe59] transition-colors shadow-lg shadow-green-500/20"
+            >
+              <MessageCircle size={22} />
+              WhatsApp to Order
+            </a>
+            <p className="mt-3 text-xs text-slate-400">Tap to chat directly — quick, easy, and personalised</p>
           </div>
         </div>
       </section>

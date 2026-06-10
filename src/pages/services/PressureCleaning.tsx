@@ -1,8 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, CheckCircle2, ChevronLeft, Droplets, Waves, Paintbrush, Home as HomeIcon, ArrowLeft, Loader2, Star } from 'lucide-react';
+import { Phone, Mail, CheckCircle2, ChevronLeft, Droplets, Waves, Paintbrush, Home as HomeIcon, ArrowLeft, Loader2, Star, Sparkles, Car } from 'lucide-react';
 import BookingForm from '../../components/BookingForm';
+
+// Map DB service names → icons
+const SERVICE_ICONS: Record<string, React.ElementType> = {
+  'House Washing':     HomeIcon,
+  'Roof Cleaning':     HomeIcon,
+  'Gutter Cleaning':   Droplets,
+  'Driveway Cleaning': Waves,
+  'Paver Cleaning':    Waves,
+  'Sidewalk Cleaning': Waves,
+  'Pool Cage & Deck':  Droplets,
+  'Fence Cleaning':    Paintbrush,
+  'Window Cleaning':   Sparkles,
+  'Exterior Walls':    Paintbrush,
+};
 
 export default function PressureCleaning() {
   const [storeData, setStoreData] = useState<any>(null);
@@ -11,38 +25,24 @@ export default function PressureCleaning() {
   useEffect(() => {
     fetch('/api/stores/pressure-cleaning')
       .then(res => res.json())
-      .then(data => {
-        setStoreData(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error('Error fetching store data:', err);
-        setLoading(false);
-      });
+      .then(data => { setStoreData(data); setLoading(false); })
+      .catch(err => { console.error('Error fetching store data:', err); setLoading(false); });
   }, []);
 
-  const services = [
-    {
-      title: "Driveways & Paving",
-      description: "Removing oil stains, weed buildup, and embedded dirt to restore the beauty of your property's entrance.",
-      icon: Waves
-    },
-    {
-      title: "Roof Cleaning",
-      description: "Safe eradication of moss and algae to prolong roof life and enhance curb appeal without damage.",
-      icon: HomeIcon
-    },
-    {
-      title: "Exterior Walls",
-      description: "Restoring brickwork and plastered walls to their original color by lifting years of grime and pollution.",
-      icon: Paintbrush
-    },
-    {
-      title: "Gutters & Fascias",
-      description: "Clearing blockages and washing exterior trims to ensure proper drainage and a clean finish.",
-      icon: Droplets
-    }
+  const fallbackServices = [
+    { title: 'Driveways & Paving', description: "Removing oil stains, weed buildup, and embedded dirt to restore the beauty of your property's entrance.", icon: Waves    },
+    { title: 'Roof Cleaning',      description: 'Safe eradication of moss and algae to prolong roof life and enhance curb appeal without damage.',         icon: HomeIcon  },
+    { title: 'Exterior Walls',     description: 'Restoring brickwork and plastered walls to their original color by lifting years of grime and pollution.', icon: Paintbrush},
+    { title: 'Gutters & Fascias',  description: 'Clearing blockages and washing exterior trims to ensure proper drainage and a clean finish.',              icon: Droplets  },
   ];
+
+  const displayServices = storeData?.services?.length > 0
+    ? storeData.services.map((s: any) => ({
+        title: s.name,
+        description: s.description,
+        icon: SERVICE_ICONS[s.name] || Waves,
+      }))
+    : fallbackServices;
 
   if (loading) {
     return (
@@ -150,7 +150,7 @@ export default function PressureCleaning() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">
-            {services.map((item, index) => (
+            {displayServices.map((item, index) => (
               <motion.div 
                 key={item.title}
                 initial={{ opacity: 0, y: 20 }}
@@ -173,6 +173,44 @@ export default function PressureCleaning() {
           </div>
         </div>
       </section>
+
+      {/* Before & After Gallery */}
+      {storeData?.galleryImages && (storeData.galleryImages as any[]).length > 0 && (
+        <section className="py-14 px-4 sm:px-6 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <span className="inline-block px-3 py-1.5 mb-4 text-xs font-bold uppercase tracking-wider text-teal-600 bg-teal-50 rounded-full">
+                Real Results
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-3 tracking-tight">See the TotalLŸ Difference</h2>
+              <p className="text-slate-500 text-sm sm:text-base max-w-xl mx-auto">Before &amp; after — industrial power, professional finish.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(storeData.galleryImages as { url: string; caption?: string }[]).map((img, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="relative group rounded-2xl overflow-hidden bg-slate-100 aspect-video"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.caption || `Result ${i + 1}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {img.caption && (
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-3">
+                      <p className="text-white text-xs font-semibold">{img.caption}</p>
+                    </div>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Trust & Stats */}
       <section className="py-14 bg-white">
