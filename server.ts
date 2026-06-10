@@ -110,13 +110,16 @@ async function startServer() {
   app.patch("/api/stores/:slug", async (req, res) => {
     try {
       const { slug } = req.params;
-      const { 
-        heroHeadline, 
+      const {
+        pageTitle,
+        pageDescription,
+        heroHeadline,
         tagline,
-        missionText, 
-        aboutUsText, 
+        missionText,
+        aboutUsText,
         heroImageUrl,
-        servicesHeading,
+        servicesHeadline,
+        servicesDescription,
         aboutHeading,
         testimonialText,
         testimonialAuthor,
@@ -131,12 +134,15 @@ async function startServer() {
         where: { slug },
         include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
         data: {
+          ...(pageTitle && { pageTitle }),
+          ...(pageDescription && { pageDescription }),
           heroHeadline,
           tagline,
           missionText,
           aboutUsText,
           heroImageUrl,
-          servicesHeading,
+          servicesHeadline,
+          ...(servicesDescription && { servicesDescription }),
           aboutHeading,
           testimonialText,
           testimonialAuthor,
