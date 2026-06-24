@@ -1,28 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useParams, Link } from 'react-router-dom';
-import { 
-  Users, 
-  Layout, 
-  ArrowLeft, 
-  Lock, 
-  Loader2, 
-  Save, 
-  MapPin, 
-  Calendar, 
+import {
+  Users,
+  Layout,
+  ArrowLeft,
+  Lock,
+  Loader2,
+  Save,
+  MapPin,
+  Calendar,
   Briefcase,
   AlertCircle,
   FileText,
   Image as ImageIcon,
   LogOut,
   X,
-  Plus
+  Plus,
+  Mail,
+  Send,
+  Check,
+  Package,
+  Zap
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export default function TenantDashboard() {
   const { storeSlug } = useParams<{ storeSlug: string }>();
-  const [activeTab, setActiveTab] = useState<'leads' | 'cms'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'cms' | 'services' | 'email'>('leads');
   const [leads, setLeads] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -30,6 +35,10 @@ export default function TenantDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [galleryImages, setGalleryImages] = useState<{ url: string; caption: string }[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [testEmail, setTestEmail] = useState('');
+  const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
 
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
@@ -65,7 +74,12 @@ export default function TenantDashboard() {
       const storeRes = await fetch(`/api/stores/${storeSlug}`);
       const storeInfo = await storeRes.json();
       setStoreData(storeInfo);
-      
+
+      // Fetch Services
+      if (storeInfo.services) {
+        setServices(storeInfo.services);
+      }
+
       setCmsForm({
         pageTitle: storeInfo.pageTitle || '',
         pageDescription: storeInfo.pageDescription || '',
@@ -89,6 +103,40 @@ export default function TenantDashboard() {
       console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Send Test Email
+  const handleSendTestEmail = async () => {
+    if (!testEmail) {
+      setEmailStatus('error');
+      setStatusMessage('Please enter an email address');
+      return;
+    }
+
+    setEmailStatus('sending');
+    setStatusMessage('Sending test email...');
+
+    try {
+      const response = await fetch('/api/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setEmailStatus('success');
+        setStatusMessage(`✅ Test email sent to ${testEmail}! Check your inbox.`);
+        setTimeout(() => setTestEmail(''), 2000);
+      } else {
+        setEmailStatus('error');
+        setStatusMessage(`❌ Error: ${data.error}`);
+      }
+    } catch (error) {
+      setEmailStatus('error');
+      setStatusMessage('Failed to send test email. Check your connection.');
     }
   };
 
@@ -206,24 +254,42 @@ export default function TenantDashboard() {
               <LogOut size={16} /> Logout
             </button>
 
-            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl">
-              <button 
+            <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-2xl overflow-x-auto">
+              <button
                 onClick={() => setActiveTab('leads')}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
                   activeTab === 'leads' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                 )}
               >
-                <Users size={18} /> Lead Manager
+                <Users size={16} /> Leads
               </button>
-              <button 
+              <button
+                onClick={() => setActiveTab('email')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeTab === 'email' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Mail size={16} /> Email
+              </button>
+              <button
+                onClick={() => setActiveTab('services')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeTab === 'services' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <Package size={16} /> Services
+              </button>
+              <button
                 onClick={() => setActiveTab('cms')}
                 className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
                   activeTab === 'cms' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
                 )}
               >
-                <Layout size={18} /> Storefront Editor
+                <Layout size={16} /> Pages
               </button>
             </div>
           </div>
@@ -231,6 +297,161 @@ export default function TenantDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto p-8">
+        {activeTab === 'email' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+                    <Mail size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">Service</p>
+                    <h3 className="text-2xl font-bold text-slate-900">Resend</h3>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+                    <Check size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">Status</p>
+                    <h3 className="text-2xl font-bold text-slate-900">Active</h3>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                    <Send size={24} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">Domain</p>
+                    <h3 className="text-lg font-bold text-slate-900">cleandeep.co.za</h3>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Mail size={20} className="text-green-600" />
+                Test Email Service
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700 mb-2 block">Test Email Address</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      placeholder="your-email@example.com"
+                      value={testEmail}
+                      onChange={(e) => setTestEmail(e.target.value)}
+                      className="flex-1 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none"
+                    />
+                    <button
+                      onClick={handleSendTestEmail}
+                      disabled={emailStatus === 'sending'}
+                      className={cn(
+                        'px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2',
+                        emailStatus === 'sending'
+                          ? 'bg-slate-300 text-slate-600 cursor-not-allowed'
+                          : 'bg-green-600 text-white hover:bg-green-700'
+                      )}
+                    >
+                      {emailStatus === 'sending' ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send size={18} />
+                          Send Test Email
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {statusMessage && (
+                  <div
+                    className={cn(
+                      'p-4 rounded-xl flex gap-3 items-start',
+                      emailStatus === 'success'
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    )}
+                  >
+                    <div className={emailStatus === 'success' ? 'text-green-600' : 'text-red-600'}>
+                      {emailStatus === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
+                    </div>
+                    <p className={emailStatus === 'success' ? 'text-green-800' : 'text-red-800'}>{statusMessage}</p>
+                  </div>
+                )}
+
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <p className="text-sm text-slate-600 leading-relaxed">
+                    <strong>What this does:</strong> Sends a test email to verify your Resend email service is working correctly. Check your inbox (including spam folder) to confirm delivery. Customer booking confirmations will be sent automatically.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'services' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-8"
+          >
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Package size={20} className="text-blue-600" />
+                Your Services / Products
+              </h3>
+
+              {services && services.length > 0 ? (
+                <div className="space-y-3">
+                  {services.map((service) => (
+                    <div key={service.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-bold text-slate-900">{service.name}</p>
+                          <p className="text-sm text-slate-600 mt-1">{service.description}</p>
+                          {service.price && (
+                            <p className="text-sm font-bold text-green-600 mt-2">R{parseFloat(service.price).toFixed(2)}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-slate-400">
+                  <Package size={40} className="mx-auto mb-4 opacity-20" />
+                  <p className="font-bold">No services configured yet</p>
+                  <p className="text-sm mt-2">Contact your admin to add services</p>
+                </div>
+              )}
+
+              <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-200">
+                <p className="text-sm text-blue-800">
+                  <strong>Note:</strong> To add or edit services, contact your system administrator. You can manage service descriptions and pricing here once configured.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {activeTab === 'leads' ? (
           <motion.div 
             initial={{ opacity: 0, y: 10 }}
