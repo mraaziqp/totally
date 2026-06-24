@@ -126,16 +126,42 @@ export async function sendAdminNotification(data: BookingEmailData) {
  */
 export async function sendTestEmail(toEmail: string) {
   try {
+    // Validate email format
+    if (!toEmail || !toEmail.includes('@')) {
+      return { success: false, error: 'Invalid email address' };
+    }
+
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: toEmail,
       subject: 'Test Email - TotalLŸ',
-      html: '<p>This is a test email from TotalLŸ. If you received this, Resend is configured correctly!</p>',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background-color: #10b981; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+            <h1 style="margin: 0;">✓ Test Email Successful</h1>
+          </div>
+          <p style="color: #333; line-height: 1.6;">
+            This is a test email from TotalLŸ. If you received this, Resend is configured correctly!
+          </p>
+          <p style="color: #666; font-size: 12px; margin-top: 20px;">
+            <strong>Email Configuration:</strong><br>
+            Service: Resend<br>
+            From: ${SENDER_ADDRESS}<br>
+            To: ${toEmail}
+          </p>
+        </div>
+      `,
     });
 
-    return { success: true, messageId: result.data?.id };
+    if (!result.data?.id) {
+      return { success: false, error: 'No message ID returned from email service' };
+    }
+
+    console.log(`Test email sent successfully to ${toEmail}, messageId: ${result.data.id}`);
+    return { success: true, messageId: result.data.id };
   } catch (error) {
     console.error('Error sending test email:', error);
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return { success: false, error: `Failed to send test email: ${errorMessage}` };
   }
 }
