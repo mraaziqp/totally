@@ -53,7 +53,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     `;
 
     const result = await resend.emails.send({
-      from: 'TotalLŸ <bookings@cleandeep.co.za>',
+      from: 'TotalLŸ <info@cleandeep.co.za>',
       to: customerEmail,
       subject: `✓ Booking Received - ${storeName}`,
       html: emailHtml,
@@ -103,7 +103,7 @@ export async function sendAdminNotification(data: BookingEmailData) {
     `;
 
     const result = await resend.emails.send({
-      from: 'TotalLŸ <noreply@cleandeep.co.za>',
+      from: 'TotalLŸ <info@cleandeep.co.za>',
       to: adminEmail,
       subject: `New Booking Request - ${storeName}`,
       html: emailHtml,
@@ -122,7 +122,7 @@ export async function sendAdminNotification(data: BookingEmailData) {
 export async function sendTestEmail(toEmail: string) {
   try {
     const result = await resend.emails.send({
-      from: 'TotalLŸ <test@cleandeep.co.za>',
+      from: 'TotalLŸ <info@cleandeep.co.za>',
       to: toEmail,
       subject: 'Test Email - TotalLŸ',
       html: '<p>This is a test email from TotalLŸ. If you received this, Resend is configured correctly!</p>',
