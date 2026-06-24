@@ -2,6 +2,11 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+// Email sender configuration from environment variables
+const SENDER_EMAIL = process.env.SENDER_EMAIL || 'info@cleandeep.co.za';
+const SENDER_NAME = process.env.SENDER_NAME || 'TotalLŸ';
+const SENDER_ADDRESS = `${SENDER_NAME} <${SENDER_EMAIL}>`;
+
 export interface BookingEmailData {
   customerName: string;
   customerEmail: string;
@@ -53,7 +58,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     `;
 
     const result = await resend.emails.send({
-      from: 'TotalLŸ <info@cleandeep.co.za>',
+      from: SENDER_ADDRESS,
       to: customerEmail,
       subject: `✓ Booking Received - ${storeName}`,
       html: emailHtml,
@@ -103,7 +108,7 @@ export async function sendAdminNotification(data: BookingEmailData) {
     `;
 
     const result = await resend.emails.send({
-      from: 'TotalLŸ <info@cleandeep.co.za>',
+      from: SENDER_ADDRESS,
       to: adminEmail,
       subject: `New Booking Request - ${storeName}`,
       html: emailHtml,
@@ -122,7 +127,7 @@ export async function sendAdminNotification(data: BookingEmailData) {
 export async function sendTestEmail(toEmail: string) {
   try {
     const result = await resend.emails.send({
-      from: 'TotalLŸ <info@cleandeep.co.za>',
+      from: SENDER_ADDRESS,
       to: toEmail,
       subject: 'Test Email - TotalLŸ',
       html: '<p>This is a test email from TotalLŸ. If you received this, Resend is configured correctly!</p>',
