@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
+import { sendBookingConfirmation, sendAdminNotification } from "./api/_lib/email";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +42,28 @@ async function startServer() {
           storeId: store.id,
           status: "NEW"
         }
+      });
+
+      // Send confirmation email to customer
+      await sendBookingConfirmation({
+        customerName,
+        customerEmail,
+        customerPhone,
+        location,
+        requestedDate,
+        storeSlug,
+        storeName: store.name,
+      });
+
+      // Send admin notification
+      await sendAdminNotification({
+        customerName,
+        customerEmail,
+        customerPhone,
+        location,
+        requestedDate,
+        storeSlug,
+        storeName: store.name,
       });
 
       res.status(201).json(lead);

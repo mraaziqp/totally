@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from './_lib/prisma';
+import { sendBookingConfirmation, sendAdminNotification } from './_lib/email';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === 'POST') {
@@ -25,6 +26,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           storeId: store.id,
           status: 'NEW',
         },
+      });
+
+      // Send confirmation email to customer
+      await sendBookingConfirmation({
+        customerName,
+        customerEmail,
+        customerPhone,
+        location,
+        requestedDate,
+        storeSlug,
+        storeName: store.name,
+      });
+
+      // Send admin notification
+      await sendAdminNotification({
+        customerName,
+        customerEmail,
+        customerPhone,
+        location,
+        requestedDate,
+        storeSlug,
+        storeName: store.name,
       });
 
       return res.status(201).json(lead);
