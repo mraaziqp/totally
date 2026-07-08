@@ -26,6 +26,8 @@ import {
   Trash2,
   Pencil
 } from 'lucide-react';
+import { cn } from '../../lib/utils';
+
 const renderNotes = (notes: string | null) => {
   if (!notes) return '—';
   const urlRegex = /(https?:\/\/[^\s]+)/g;

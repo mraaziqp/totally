@@ -285,7 +285,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                     onChange={async (e) => {
                       if (!e.target.files) return;
                       setUploading(true);
-                      const filesArray = Array.from(e.target.files);
+                      const filesArray = Array.from(e.target.files) as File[];
                       const urls: string[] = [];
                       for (const file of filesArray) {
                         try {
