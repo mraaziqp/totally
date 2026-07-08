@@ -48,7 +48,7 @@ async function main() {
     { name: 'Vehicles',                      description: 'Interior deep cleaning that lifts stains from seats, floors, and roofs, leaving your car spotless.',                            price: 650 },
     { name: 'Rug Rejuvenation',              description: 'Specialised treatment to revive delicate rugs, restoring their original vibrant patterns and texture.',                         price: 250 },
     { name: 'High Pressure (Outdoor)',       description: 'Powerful cleaning for roofs, windows, paving, and exterior walls to remove mould and grime.',                                  price: 850 },
-    { name: 'Upholstery (Couches & Chairs)', description: 'Deep fabric cleaning that removes odours and stains, giving new life to your lounge and dining sets.',                         price: 550 },
+    { name: 'Upholstery Cleaning (Couches and Chairs)', description: 'Deep fabric cleaning that removes odours and stains, giving new life to your lounge and dining sets.',                         price: 550 },
     { name: 'Curtains',                      description: 'Gentle yet effective cleaning that removes dust and pollutants without harming the fabric.',                                    price: 150 },
   ];
 

@@ -26,7 +26,32 @@ import {
   Trash2,
   Pencil
 } from 'lucide-react';
-import { cn } from '../../lib/utils';
+const renderNotes = (notes: string | null) => {
+  if (!notes) return '—';
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = notes.match(urlRegex) || [];
+  const cleanText = notes.replace(urlRegex, '').trim();
+  return (
+    <div className="space-y-1">
+      <span className="text-xs text-slate-600 block whitespace-pre-line leading-relaxed">{cleanText || 'Details:'}</span>
+      {urls.length > 0 && (
+        <div className="flex flex-wrap gap-1 pt-1">
+          {urls.map((url, idx) => (
+            <a 
+              key={idx} 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="group relative w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 hover:border-emerald-500 transition-colors shrink-0"
+            >
+              <img src={url} alt="" className="w-full h-full object-cover" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function TenantDashboard() {
   const { storeSlug } = useParams<{ storeSlug: string }>();
@@ -925,9 +950,9 @@ export default function TenantDashboard() {
                                <span className="text-sm">{lead.requestedDate ? new Date(lead.requestedDate).toLocaleDateString() : 'N/A'}</span>
                              </div>
                            </td>
-                           <td className="px-6 py-4 max-w-xs">
-                             <span className="text-sm text-slate-600 line-clamp-2">{lead.notes || '—'}</span>
-                           </td>
+                            <td className="px-6 py-4 max-w-xs">
+                              {renderNotes(lead.notes)}
+                            </td>
                            <td className="px-6 py-4">
                              <span className={cn(
                                "px-3 py-1 rounded-full text-[10px] font-bold border",
