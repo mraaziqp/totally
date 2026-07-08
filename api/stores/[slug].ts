@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../_lib/prisma';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { slug } = req.query;
@@ -9,9 +10,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const store = await prisma.store.findUnique({ where: { slug }, include: { products: { orderBy: { createdAt: 'asc' } } } });
+      const store = await prisma.store.findUnique({ where: { slug }, include: { products: { orderBy: { createdAt: 'asc' } }, services: true } });
       if (!store) return res.status(404).json({ error: 'Store not found' });
-      return res.json(store);
+      const { password: _password, ...safeStore } = store;
+      return res.json(safeStore);
     } catch (error) {
       console.error('Error fetching store:', error);
       return res.status(500).json({ error: 'Failed to fetch store' });
@@ -19,9 +21,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'PATCH') {
-    // Protect CMS updates behind admin password
+    // Protect CMS updates behind the store's own admin password
     const adminPassword = req.headers['x-admin-password'];
-    if (!process.env.ADMIN_PASSWORD || adminPassword !== process.env.ADMIN_PASSWORD) {
+    const authStore = await prisma.store.findUnique({ where: { slug } });
+    const providedPassword = typeof adminPassword === 'string' ? adminPassword : undefined;
+    if (!authStore || !(verifyStoreAccess(providedPassword, authStore) || verifyMasterAccess(providedPassword))) {
       return res.status(401).json({ error: 'Unauthorized: Invalid or missing admin password' });
     }
 
@@ -78,7 +82,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
 
       console.log(`Store updated: ${slug}`);
-      return res.json({ success: true, data: store });
+      const { password: _password, ...safeStore } = store;
+      return res.json(safeStore);
     } catch (error) {
       console.error('Error updating store:', error);
       if (error instanceof Error && error.message.includes('not found')) {

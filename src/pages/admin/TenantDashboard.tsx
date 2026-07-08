@@ -21,24 +21,36 @@ import {
   Send,
   Check,
   Package,
-  Zap
+  Zap,
+  KeyRound,
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
 export default function TenantDashboard() {
   const { storeSlug } = useParams<{ storeSlug: string }>();
-  const [activeTab, setActiveTab] = useState<'leads' | 'cms' | 'services' | 'email'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'cms' | 'services' | 'email' | 'settings'>('leads');
   const [leads, setLeads] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   const [galleryImages, setGalleryImages] = useState<{ url: string; caption: string }[]>([]);
   const [services, setServices] = useState<any[]>([]);
+  const [editingService, setEditingService] = useState<any>(null);
+  const [serviceForm, setServiceForm] = useState({ name: '', description: '', price: '' });
+  const [savingService, setSavingService] = useState(false);
   const [testEmail, setTestEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordChangeStatus, setPasswordChangeStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState('');
 
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
@@ -153,6 +165,25 @@ export default function TenantDashboard() {
     setStoreData(null);
   };
 
+  const handleLogin = async () => {
+    setAuthError('');
+    try {
+      const res = await fetch('/api/admin/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password, storeSlug }),
+      });
+      if (res.ok) {
+        setIsAuthenticated(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setAuthError(data.error || 'Incorrect password');
+      }
+    } catch (error) {
+      setAuthError('Failed to reach the server. Please try again.');
+    }
+  };
+
   const handleCmsUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -172,6 +203,114 @@ export default function TenantDashboard() {
       alert('Failed to update storefront');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const resetServiceForm = () => {
+    setEditingService(null);
+    setServiceForm({ name: '', description: '', price: '' });
+  };
+
+  const handleSaveService = async () => {
+    if (!serviceForm.name.trim()) {
+      alert('Service name is required');
+      return;
+    }
+    setSavingService(true);
+    try {
+      const isEditing = Boolean(editingService);
+      const res = await fetch('/api/admin/services', {
+        method: isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({
+          ...(isEditing ? { id: editingService.id } : {}),
+          storeSlug,
+          name: serviceForm.name,
+          description: serviceForm.description,
+          price: serviceForm.price,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setServices(prev =>
+          isEditing ? prev.map(s => (s.id === saved.id ? saved : s)) : [...prev, saved]
+        );
+        resetServiceForm();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Failed to save service');
+      }
+    } catch (error) {
+      alert('Failed to save service');
+    } finally {
+      setSavingService(false);
+    }
+  };
+
+  const handleEditService = (service: any) => {
+    setEditingService(service);
+    setServiceForm({
+      name: service.name || '',
+      description: service.description || '',
+      price: service.price !== null && service.price !== undefined ? String(service.price) : '',
+    });
+  };
+
+  const handleDeleteService = async (service: any) => {
+    if (!confirm(`Delete "${service.name}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/admin/services', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ id: service.id, storeSlug }),
+      });
+      if (res.ok) {
+        setServices(prev => prev.filter(s => s.id !== service.id));
+        if (editingService?.id === service.id) resetServiceForm();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Failed to delete service');
+      }
+    } catch (error) {
+      alert('Failed to delete service');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setPasswordChangeStatus('error');
+      setPasswordChangeMessage('New password must be at least 8 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordChangeStatus('error');
+      setPasswordChangeMessage('New password and confirmation do not match');
+      return;
+    }
+    setPasswordChangeStatus('saving');
+    setPasswordChangeMessage('');
+    try {
+      const res = await fetch('/api/admin/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeSlug, currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPasswordChangeStatus('success');
+        setPasswordChangeMessage('Password updated successfully. Use it next time you log in.');
+        setPassword(newPassword);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setPasswordChangeStatus('error');
+        setPasswordChangeMessage(data.error || 'Failed to change password');
+      }
+    } catch (error) {
+      setPasswordChangeStatus('error');
+      setPasswordChangeMessage('Failed to reach the server. Please try again.');
     }
   };
 
@@ -195,18 +334,15 @@ export default function TenantDashboard() {
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              onKeyDown={async e => {
-                if (e.key === 'Enter') {
-                  const res = await fetch('/api/admin/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-                  if (res.ok) setIsAuthenticated(true); else alert('Incorrect password');
-                }
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleLogin();
               }}
             />
-            <button 
-              onClick={async () => {
-                const res = await fetch('/api/admin/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password }) });
-                if (res.ok) setIsAuthenticated(true); else alert('Incorrect password');
-              }}
+            {authError && (
+              <p className="text-sm font-medium text-rose-600 -mt-2">{authError}</p>
+            )}
+            <button
+              onClick={handleLogin}
               className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg"
             >
               Unlock Dashboard
@@ -290,6 +426,15 @@ export default function TenantDashboard() {
                 )}
               >
                 <Layout size={16} /> Pages
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeTab === 'settings' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <KeyRound size={16} /> Settings
               </button>
             </div>
           </div>
@@ -413,47 +558,200 @@ export default function TenantDashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
           >
-            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <Package size={20} className="text-blue-600" />
-                Your Services / Products
-              </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Package size={20} className="text-blue-600" />
+                  Your Services / Products
+                </h3>
 
-              {services && services.length > 0 ? (
-                <div className="space-y-3">
-                  {services.map((service) => (
-                    <div key={service.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-colors">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="font-bold text-slate-900">{service.name}</p>
-                          <p className="text-sm text-slate-600 mt-1">{service.description}</p>
-                          {service.price && (
-                            <p className="text-sm font-bold text-green-600 mt-2">R{parseFloat(service.price).toFixed(2)}</p>
-                          )}
+                {services && services.length > 0 ? (
+                  <div className="space-y-3">
+                    {services.map((service) => (
+                      <div key={service.id} className="p-4 border border-slate-200 rounded-xl hover:border-blue-500 transition-colors">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <p className="font-bold text-slate-900">{service.name}</p>
+                            <p className="text-sm text-slate-600 mt-1">{service.description}</p>
+                            {service.price !== null && service.price !== undefined && (
+                              <p className="text-sm font-bold text-green-600 mt-2">R{parseFloat(service.price).toFixed(2)}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <button
+                              onClick={() => handleEditService(service)}
+                              className="w-9 h-9 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors flex items-center justify-center"
+                            >
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteService(service)}
+                              className="w-9 h-9 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="p-8 text-center text-slate-400">
-                  <Package size={40} className="mx-auto mb-4 opacity-20" />
-                  <p className="font-bold">No services configured yet</p>
-                  <p className="text-sm mt-2">Contact your admin to add services</p>
-                </div>
-              )}
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-8 text-center text-slate-400">
+                    <Package size={40} className="mx-auto mb-4 opacity-20" />
+                    <p className="font-bold">No services configured yet</p>
+                    <p className="text-sm mt-2">Add your first service using the form</p>
+                  </div>
+                )}
+              </div>
 
-              <div className="mt-6 bg-blue-50 p-4 rounded-xl border border-blue-200">
-                <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> To add or edit services, contact your system administrator. You can manage service descriptions and pricing here once configured.
-                </p>
+              <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm h-fit">
+                <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <Plus size={20} className="text-blue-600" />
+                  {editingService ? 'Edit Service' : 'Add Service'}
+                </h3>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      placeholder="e.g. Deep Carpet Clean"
+                      value={serviceForm.name}
+                      onChange={e => setServiceForm({ ...serviceForm, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Description</label>
+                    <textarea
+                      className="w-full h-24 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all resize-none"
+                      placeholder="Briefly describe this service..."
+                      value={serviceForm.description}
+                      onChange={e => setServiceForm({ ...serviceForm, description: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Price (R)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      placeholder="Optional"
+                      value={serviceForm.price}
+                      onChange={e => setServiceForm({ ...serviceForm, price: e.target.value })}
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      onClick={handleSaveService}
+                      disabled={savingService}
+                      className={cn(
+                        "flex-1 py-3 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2",
+                        savingService ? "bg-blue-300 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+                      )}
+                    >
+                      {savingService ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                      {editingService ? 'Update' : 'Add'}
+                    </button>
+                    {editingService && (
+                      <button
+                        onClick={resetServiceForm}
+                        className="px-4 py-3 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </motion.div>
         )}
 
-        {activeTab === 'leads' ? (
-          <motion.div 
+        {activeTab === 'settings' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-xl"
+          >
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <KeyRound size={20} className="text-slate-700" />
+                Login & Password
+              </h3>
+              <p className="text-sm text-slate-500 mb-6">
+                Change the password used to access the <strong>{storeSlug}</strong> dashboard at{' '}
+                <code className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">/admin/{storeSlug}</code>.
+              </p>
+
+              <form onSubmit={handleChangePassword} className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Current Password</label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                    value={currentPassword}
+                    onChange={e => setCurrentPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">New Password</label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                    value={newPassword}
+                    onChange={e => setNewPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Confirm New Password</label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    minLength={8}
+                    required
+                  />
+                </div>
+
+                {passwordChangeMessage && (
+                  <div
+                    className={cn(
+                      'p-4 rounded-xl flex gap-3 items-start',
+                      passwordChangeStatus === 'success'
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-red-50 border border-red-200'
+                    )}
+                  >
+                    <div className={passwordChangeStatus === 'success' ? 'text-green-600' : 'text-red-600'}>
+                      {passwordChangeStatus === 'success' ? <Check size={20} /> : <AlertCircle size={20} />}
+                    </div>
+                    <p className={passwordChangeStatus === 'success' ? 'text-green-800' : 'text-red-800'}>{passwordChangeMessage}</p>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={passwordChangeStatus === 'saving'}
+                  className={cn(
+                    "w-full py-3 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2",
+                    passwordChangeStatus === 'saving' ? "bg-slate-400 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
+                  )}
+                >
+                  {passwordChangeStatus === 'saving' ? <Loader2 size={18} className="animate-spin" /> : <KeyRound size={18} />}
+                  Update Password
+                </button>
+              </form>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'leads' && (
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="space-y-8"
@@ -539,8 +837,10 @@ export default function TenantDashboard() {
                </div>
             </div>
           </motion.div>
-        ) : (
-          <motion.div 
+        )}
+
+        {activeTab === 'cms' && (
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="grid grid-cols-1 lg:grid-cols-3 gap-8"

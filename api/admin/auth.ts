@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { prisma } from '../_lib/prisma';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
 
 // Simple in-memory rate limiting (resets per deployment)
 const loginAttempts = new Map<string, { count: number; resetTime: number }>();
@@ -36,14 +38,14 @@ function checkRateLimit(ip: string): { allowed: boolean; message?: string } {
   return { allowed: true };
 }
 
-export default function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { password } = req.body;
+    const { password, storeSlug } = req.body;
 
     // Validate input
     if (!password || typeof password !== 'string') {
@@ -64,16 +66,23 @@ export default function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(429).json({ error: rateLimit.message });
     }
 
-    // Constant-time comparison to prevent timing attacks
-    const passwordBuffer = Buffer.from(password);
-    const correctBuffer = Buffer.from(process.env.ADMIN_PASSWORD);
-    const isMatch = passwordBuffer.length === correctBuffer.length &&
-                   passwordBuffer.every((val, idx) => val === correctBuffer[idx]);
+    let isMatch = false;
+
+    if (storeSlug && typeof storeSlug === 'string') {
+      // Tenant login: the store's own password works, and the master password always works too
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (store) {
+        isMatch = verifyStoreAccess(password, store) || verifyMasterAccess(password);
+      }
+    } else {
+      // Super-admin login
+      isMatch = verifyMasterAccess(password);
+    }
 
     if (isMatch) {
       // Reset rate limiting on successful login
       loginAttempts.delete(clientIp);
-      console.log(`Successful admin login from ${clientIp}`);
+      console.log(`Successful admin login from ${clientIp}${storeSlug ? ` (store: ${storeSlug})` : ''}`);
       return res.status(200).json({ success: true, message: 'Authentication successful' });
     }
 

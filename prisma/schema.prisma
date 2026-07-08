@@ -32,6 +32,7 @@ model Store {
   deliveryNote           String?
   pageTitle              String?
   pageDescription        String?
+  password               String?
   services               Service[]
   products               Product[]
   orders                 Order[]

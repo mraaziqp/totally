@@ -1,16 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from '../_lib/prisma';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // Validate admin password via header to protect lead data
   const adminPassword = req.headers['x-admin-password'];
-  if (!process.env.ADMIN_PASSWORD || adminPassword !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  const providedPassword = typeof adminPassword === 'string' ? adminPassword : undefined;
 
   try {
     const { storeSlug } = req.query;
@@ -21,8 +19,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (storeSlug && typeof storeSlug === 'string') {
       const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
-      if (store) {
-        queryOptions.where = { storeId: store.id };
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      queryOptions.where = { storeId: store.id };
+    } else {
+      // No store scope requested: only the master admin can see all leads
+      if (!verifyMasterAccess(providedPassword)) {
+        return res.status(401).json({ error: 'Unauthorized' });
       }
     }
 
