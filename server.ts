@@ -326,30 +326,45 @@ async function startServer() {
         deliveryNote,
         contactPhone,
         contactEmail,
+        instagramUrl,
+        facebookUrl,
+        tiktokUrl,
+        address,
       } = req.body;
+
+      // Validate email format if provided
+      if (contactEmail && !contactEmail.includes('@')) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+
+      // Build update data with only provided fields
+      const updateData: Record<string, any> = {};
+      if (heroHeadline !== undefined) updateData.heroHeadline = heroHeadline;
+      if (tagline !== undefined) updateData.tagline = tagline;
+      if (missionText !== undefined) updateData.missionText = missionText;
+      if (aboutUsText !== undefined) updateData.aboutUsText = aboutUsText;
+      if (heroImageUrl !== undefined) updateData.heroImageUrl = heroImageUrl;
+      if (servicesHeadline !== undefined) updateData.servicesHeadline = servicesHeadline;
+      if (servicesDescription !== undefined) updateData.servicesDescription = servicesDescription;
+      if (aboutHeading !== undefined) updateData.aboutHeading = aboutHeading;
+      if (testimonialText !== undefined) updateData.testimonialText = testimonialText;
+      if (testimonialAuthor !== undefined) updateData.testimonialAuthor = testimonialAuthor;
+      if (testimonialAuthorRole !== undefined) updateData.testimonialAuthorRole = testimonialAuthorRole;
+      if (galleryImages !== undefined) updateData.galleryImages = galleryImages;
+      if (deliveryNote !== undefined) updateData.deliveryNote = deliveryNote;
+      if (contactPhone !== undefined) updateData.contactPhone = contactPhone;
+      if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
+      if (pageTitle !== undefined) updateData.pageTitle = pageTitle;
+      if (pageDescription !== undefined) updateData.pageDescription = pageDescription;
+      if (instagramUrl !== undefined) updateData.instagramUrl = instagramUrl;
+      if (facebookUrl !== undefined) updateData.facebookUrl = facebookUrl;
+      if (tiktokUrl !== undefined) updateData.tiktokUrl = tiktokUrl;
+      if (address !== undefined) updateData.address = address;
 
       const store = await prisma.store.update({
         where: { slug },
         include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
-        data: {
-          ...(pageTitle && { pageTitle }),
-          ...(pageDescription && { pageDescription }),
-          heroHeadline,
-          tagline,
-          missionText,
-          aboutUsText,
-          heroImageUrl,
-          servicesHeadline,
-          ...(servicesDescription && { servicesDescription }),
-          aboutHeading,
-          testimonialText,
-          testimonialAuthor,
-          testimonialAuthorRole,
-          galleryImages: galleryImages ?? undefined,
-          deliveryNote,
-          ...(contactPhone && { contactPhone }),
-          ...(contactEmail && { contactEmail }),
-        }
+        data: updateData,
       });
 
       const { password: _password2, ...safeStore } = store;

@@ -48,6 +48,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         contactEmail,
         pageTitle,
         pageDescription,
+        instagramUrl,
+        facebookUrl,
+        tiktokUrl,
+        address,
       } = req.body;
 
       // Validate email format if provided
@@ -74,6 +78,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (contactEmail !== undefined) updateData.contactEmail = contactEmail;
       if (pageTitle !== undefined) updateData.pageTitle = pageTitle;
       if (pageDescription !== undefined) updateData.pageDescription = pageDescription;
+      if (instagramUrl !== undefined) updateData.instagramUrl = instagramUrl;
+      if (facebookUrl !== undefined) updateData.facebookUrl = facebookUrl;
+      if (tiktokUrl !== undefined) updateData.tiktokUrl = tiktokUrl;
+      if (address !== undefined) updateData.address = address;
 
       const store = await prisma.store.update({
         where: { slug },

@@ -31,6 +31,10 @@ async function main() {
       testimonialText: 'The TotalLŸ team brings a level of professionalism and efficiency that is rare. Their commitment to ihsaan is visible in every corner they clean.',
       testimonialAuthor: 'Moulana Luqmaan',
       testimonialAuthorRole: 'Community Leader',
+      address: 'Cape Town, South Africa',
+      instagramUrl: 'https://instagram.com/cleandeep',
+      facebookUrl: 'https://facebook.com/cleandeep',
+      tiktokUrl: 'https://tiktok.com/@cleandeep',
       galleryImages: [
         { url: '/images/deep-cleaning/carpet-before-after.jpg', caption: 'Carpet — Before & After' },
         { url: '/images/deep-cleaning/sofa-before-after.jpg',   caption: 'Sofa Upholstery — Before & After' },

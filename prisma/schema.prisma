@@ -32,6 +32,10 @@ model Store {
   deliveryNote           String?
   pageTitle              String?
   pageDescription        String?
+  instagramUrl           String?
+  facebookUrl            String?
+  tiktokUrl              String?
+  address                String?
   password               String?
   services               Service[]
   products               Product[]

@@ -74,6 +74,10 @@ export default function TenantDashboard() {
     deliveryNote: '',
     contactPhone: '',
     contactEmail: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    tiktokUrl: '',
+    address: '',
   });
 
   const fetchData = async () => {
@@ -113,6 +117,10 @@ export default function TenantDashboard() {
         deliveryNote: storeInfo.deliveryNote || '',
         contactPhone: storeInfo.contactPhone || '',
         contactEmail: storeInfo.contactEmail || '',
+        instagramUrl: storeInfo.instagramUrl || '',
+        facebookUrl: storeInfo.facebookUrl || '',
+        tiktokUrl: storeInfo.tiktokUrl || '',
+        address: storeInfo.address || '',
       });
       setGalleryImages(Array.isArray(storeInfo.galleryImages) ? storeInfo.galleryImages : []);
     } catch (error) {
@@ -201,6 +209,9 @@ export default function TenantDashboard() {
         const updated = await response.json();
         setStoreData(updated);
         alert('Storefront updated successfully!');
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(`Failed to update storefront: ${data.error || response.statusText}`);
       }
     } catch (error) {
       console.error('Error updating store:', error);
@@ -1002,6 +1013,50 @@ export default function TenantDashboard() {
                           placeholder="e.g. info@totally.co.za"
                           value={cmsForm.contactEmail}
                           onChange={e => setCmsForm({...cmsForm, contactEmail: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Physical Address</label>
+                      <input
+                        type="text"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                        placeholder="e.g. Cape Town, South Africa"
+                        value={cmsForm.address}
+                        onChange={e => setCmsForm({...cmsForm, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Facebook Page URL</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. https://facebook.com/cleandeep"
+                          value={cmsForm.facebookUrl}
+                          onChange={e => setCmsForm({...cmsForm, facebookUrl: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Instagram URL</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. https://instagram.com/cleandeep"
+                          value={cmsForm.instagramUrl}
+                          onChange={e => setCmsForm({...cmsForm, instagramUrl: e.target.value})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">TikTok URL</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. https://tiktok.com/@cleandeep"
+                          value={cmsForm.tiktokUrl}
+                          onChange={e => setCmsForm({...cmsForm, tiktokUrl: e.target.value})}
                         />
                       </div>
                     </div>

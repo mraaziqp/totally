@@ -19,12 +19,12 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
     location: '',
     services: [] as string[],
     date: '',
+    notes: '',
   });
 
-  const locations = ["Atlantis", "CBD", "Bellville", "Northern Suburbs", "Other"];
   const services = [
     "Carpets", "Mattress", "Vehicles", "Rug Rejuvenation", 
-    "High Pressure (Outdoor)", "Upholstery", "Curtains"
+    "High Pressure (Outdoor)", "Upholstery Cleaning (Couches and Chairs)", "Curtains"
   ];
 
   const handleNext = () => setStep(2);
@@ -51,7 +51,8 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
           customerPhone: formData.phone,
           location: formData.location,
           requestedDate: formData.date,
-          storeSlug: storeSlug
+          storeSlug: storeSlug,
+          notes: `Services selected: ${formData.services.join(', ')}${formData.notes ? `\n\nDescription: ${formData.notes}` : ''}`
         })
       });
 
@@ -83,7 +84,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
           Thank you for trusting TotalLŸ. We have received your request and our team will contact you shortly to confirm your appointment.
         </p>
         <button 
-          onClick={() => { setSuccess(false); setStep(1); setFormData({ name: '', email: '', phone: '', location: '', services: [], date: '' }); }}
+          onClick={() => { setSuccess(false); setStep(1); setFormData({ name: '', email: '', phone: '', location: '', services: [], date: '', notes: '' }); }}
           className="text-emerald-600 font-bold hover:underline"
         >
           Make another booking
@@ -156,18 +157,15 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
 
               <div className="space-y-2">
                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                  <MapPin size={16} className="text-emerald-500" /> Location
+                  <MapPin size={16} className="text-emerald-500" /> Area (Location)
                 </label>
-                <select
-                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all bg-white text-base"
+                <input
+                  type="text"
+                  placeholder="e.g. Plattekloof, Bellville"
+                  className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base"
                   value={formData.location}
                   onChange={e => setFormData({...formData, location: e.target.value})}
-                >
-                  <option value="">Select a location</option>
-                  {locations.map(loc => (
-                    <option key={loc} value={loc}>{loc}</option>
-                  ))}
-                </select>
+                />
               </div>
 
               <button
@@ -212,6 +210,24 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                     </label>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <label className="text-sm font-medium text-slate-700">
+                  Brief description of service required (max 100 words)
+                </label>
+                <textarea
+                  placeholder="e.g. Clean 3-seater couch and 4 dining chairs..."
+                  className="w-full h-24 px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none transition-all text-base resize-none"
+                  value={formData.notes}
+                  onChange={e => {
+                    const val = e.target.value;
+                    const words = val.trim().split(/\s+/).filter(Boolean);
+                    if (words.length <= 100) {
+                      setFormData({ ...formData, notes: val });
+                    }
+                  }}
+                />
               </div>
 
               <div className="space-y-2 pt-2">
