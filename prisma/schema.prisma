@@ -87,6 +87,7 @@ model Lead {
   location      String
   status        String   @default("NEW")
   requestedDate DateTime?
+  notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }

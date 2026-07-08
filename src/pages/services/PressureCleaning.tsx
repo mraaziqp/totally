@@ -29,6 +29,19 @@ export default function PressureCleaning() {
       .catch(err => { console.error('Error fetching store data:', err); setLoading(false); });
   }, []);
 
+  useEffect(() => {
+    if (storeData?.pageTitle) document.title = storeData.pageTitle;
+    if (storeData?.pageDescription) {
+      let meta = document.querySelector('meta[name="description"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'description');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', storeData.pageDescription);
+    }
+  }, [storeData]);
+
   const fallbackServices = [
     { title: 'Driveways & Paving', description: "Removing oil stains, weed buildup, and embedded dirt to restore the beauty of your property's entrance.", icon: Waves    },
     { title: 'Roof Cleaning',      description: 'Safe eradication of moss and algae to prolong roof life and enhance curb appeal without damage.',         icon: HomeIcon  },
@@ -144,9 +157,9 @@ export default function PressureCleaning() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-3">
-               {storeData?.servicesHeading || "Restore Your Curb Appeal"}
+               {storeData?.servicesHeadline || "Restore Your Curb Appeal"}
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-lg leading-relaxed">Powerful solutions for every exterior surface.</p>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-lg leading-relaxed">{storeData?.servicesDescription || "Powerful solutions for every exterior surface."}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-8">

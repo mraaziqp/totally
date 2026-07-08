@@ -22,6 +22,19 @@ export default function Gifting() {
       });
   }, []);
 
+  useEffect(() => {
+    if (storeData?.pageTitle) document.title = storeData.pageTitle;
+    if (storeData?.pageDescription) {
+      let meta = document.querySelector('meta[name="description"]');
+      if (!meta) {
+        meta = document.createElement('meta');
+        meta.setAttribute('name', 'description');
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute('content', storeData.pageDescription);
+    }
+  }, [storeData]);
+
   const categories = [
     {
       title: "Custom Bags",
@@ -147,9 +160,9 @@ export default function Gifting() {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10">
             <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 mb-4 tracking-tight">
-               {storeData?.servicesHeading || "Our Creative Categories"}
+               {storeData?.servicesHeadline || "Our Creative Categories"}
             </h2>
-            <p className="text-slate-500 max-w-xl mx-auto text-sm sm:text-lg leading-relaxed">High-quality products designed to carry your brand or personality with elegance.</p>
+            <p className="text-slate-500 max-w-xl mx-auto text-sm sm:text-lg leading-relaxed">{storeData?.servicesDescription || "High-quality products designed to carry your brand or personality with elegance."}</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-8">

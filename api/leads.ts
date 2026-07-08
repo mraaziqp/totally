@@ -24,7 +24,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { customerName, customerEmail, customerPhone, location, requestedDate, storeSlug } = req.body;
+    const { customerName, customerEmail, customerPhone, location, requestedDate, storeSlug, notes } = req.body;
 
     // Validate required fields exist
     if (!customerName || !customerEmail || !customerPhone || !location || !storeSlug) {
@@ -79,6 +79,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       parsedDate = dateObj;
     }
 
+    // Sanitize optional notes (custom order details / product type)
+    const sanitizedNotes = typeof notes === 'string' && notes.trim() ? sanitizeString(notes) : undefined;
+
     // Create lead in database
     const lead = await prisma.lead.create({
       data: {
@@ -87,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         customerPhone: customerPhone.trim(),
         location: sanitizedLocation,
         requestedDate: parsedDate,
+        notes: sanitizedNotes,
         storeId: store.id,
         status: 'NEW',
       },
@@ -101,6 +105,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       requestedDate: requestedDate,
       storeSlug: sanitizedSlug,
       storeName: store.name,
+      notes: sanitizedNotes,
     }).catch(err => {
       console.error('Failed to send booking confirmation email:', err);
     });
@@ -114,6 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       requestedDate: requestedDate,
       storeSlug: sanitizedSlug,
       storeName: store.name,
+      notes: sanitizedNotes,
     }).catch(err => {
       console.error('Failed to send admin notification email:', err);
     });

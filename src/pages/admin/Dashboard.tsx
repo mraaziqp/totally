@@ -291,6 +291,7 @@ export default function AdminDashboard() {
                       <th className="px-6 py-4">Phone</th>
                       <th className="px-6 py-4">Location</th>
                       <th className="px-6 py-4">Date</th>
+                      <th className="px-6 py-4">Details</th>
                       <th className="px-6 py-4">Status</th>
                       <th className="px-6 py-4 text-center">Actions</th>
                     </tr>
@@ -329,6 +330,9 @@ export default function AdminDashboard() {
                             <Calendar size={14} />
                             <span className="text-sm">{lead.requestedDate ? new Date(lead.requestedDate).toLocaleDateString() : 'N/A'}</span>
                           </div>
+                        </td>
+                        <td className="px-6 py-4 max-w-xs">
+                          <span className="text-sm text-slate-600 line-clamp-2">{lead.notes || '—'}</span>
                         </td>
                         <td className="px-6 py-4">
                           <span className={cn(

@@ -15,6 +15,7 @@ export interface BookingEmailData {
   requestedDate?: string;
   storeSlug: string;
   storeName: string;
+  notes?: string;
 }
 
 /**
@@ -22,7 +23,7 @@ export interface BookingEmailData {
  */
 export async function sendBookingConfirmation(data: BookingEmailData) {
   try {
-    const { customerName, customerEmail, location, requestedDate, storeName } = data;
+    const { customerName, customerEmail, location, requestedDate, storeName, notes } = data;
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -38,6 +39,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
           <p style="margin: 10px 0;"><strong>Location:</strong> ${location}</p>
           ${requestedDate ? `<p style="margin: 10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString()}</p>` : ''}
           <p style="margin: 10px 0;"><strong>Contact:</strong> ${customerEmail}</p>
+          ${notes ? `<p style="margin: 10px 0;"><strong>Details:</strong> ${notes}</p>` : ''}
         </div>
 
         <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
@@ -76,7 +78,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
  */
 export async function sendAdminNotification(data: BookingEmailData) {
   try {
-    const { customerName, customerEmail, customerPhone, location, requestedDate, storeName } = data;
+    const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
     const adminEmail = 'admin@cleandeep.co.za';
 
     const emailHtml = `
@@ -93,6 +95,7 @@ export async function sendAdminNotification(data: BookingEmailData) {
           <p style="margin: 10px 0;"><strong>Phone:</strong> <a href="tel:${customerPhone}" style="color: #10b981;">${customerPhone}</a></p>
           <p style="margin: 10px 0;"><strong>Location:</strong> ${location}</p>
           ${requestedDate ? `<p style="margin: 10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString()}</p>` : ''}
+          ${notes ? `<p style="margin: 10px 0;"><strong>Details:</strong> ${notes}</p>` : ''}
         </div>
 
         <div style="text-align: center; margin-bottom: 20px;">

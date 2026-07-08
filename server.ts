@@ -23,7 +23,7 @@ async function startServer() {
   // Submit a lead (Deep Cleaning / Pressure Cleaning)
   app.post("/api/leads", async (req, res) => {
     try {
-      const { customerName, customerEmail, customerPhone, location, requestedDate, storeSlug } = req.body;
+      const { customerName, customerEmail, customerPhone, location, requestedDate, storeSlug, notes } = req.body;
 
       const store = await prisma.store.findUnique({
         where: { slug: storeSlug }
@@ -40,6 +40,7 @@ async function startServer() {
           customerPhone,
           location,
           requestedDate: requestedDate ? new Date(requestedDate) : null,
+          notes: notes || null,
           storeId: store.id,
           status: "NEW"
         }
@@ -54,6 +55,7 @@ async function startServer() {
         requestedDate,
         storeSlug,
         storeName: store.name,
+        notes,
       });
 
       // Send admin notification
@@ -65,6 +67,7 @@ async function startServer() {
         requestedDate,
         storeSlug,
         storeName: store.name,
+        notes,
       });
 
       res.status(201).json(lead);
