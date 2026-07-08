@@ -168,3 +168,65 @@ export async function sendTestEmail(toEmail: string) {
     return { success: false, error: `Failed to send test email: ${errorMessage}` };
   }
 }
+
+/**
+ * Send password reset email to store contact email
+ */
+export async function sendPasswordResetEmail(storeName: string, storeSlug: string, toEmail: string, temporaryPassword: string) {
+  try {
+    const emailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #0f172a; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
+          <h1 style="margin: 0; font-size: 24px;">🔑 Password Reset Request</h1>
+          <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">TotalLŸ Command Center</p>
+        </div>
+
+        <div style="background-color: #f8fafc; padding: 25px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+          <p style="margin-top: 0; color: #334155;">Hello,</p>
+          <p style="color: #334155; line-height: 1.6;">
+            A password reset was requested for the admin dashboard of <strong>${storeName}</strong>.
+          </p>
+          <p style="color: #334155; line-height: 1.6;">
+            We have generated a secure temporary password for your account:
+          </p>
+          <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px dashed #cbd5e1;">
+            <code style="font-family: monospace; font-size: 20px; font-weight: bold; color: #0f172a; letter-spacing: 2px;">${temporaryPassword}</code>
+          </div>
+          <p style="color: #334155; line-height: 1.6;">
+            Please use this temporary password to log in. Once logged in, go to the <strong>Settings</strong> tab to set a new password of your choice.
+          </p>
+        </div>
+
+        <div style="text-align: center; margin-bottom: 25px;">
+          <a href="https://cleandeep.co.za/admin/${storeSlug}" style="background-color: #10b981; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
+            Access Admin Dashboard
+          </a>
+        </div>
+
+        <div style="color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
+          <p style="margin: 0 0 5px 0;">This email was sent from an automated system. Please do not reply to it.</p>
+          <p style="margin: 0;">TotalLŸ &copy; 2026</p>
+        </div>
+      </div>
+    `;
+
+    const result = await resend.emails.send({
+      from: SENDER_ADDRESS,
+      to: toEmail,
+      subject: `🔑 Password Reset - ${storeName}`,
+      html: emailHtml,
+    });
+
+    if (!result.data?.id) {
+      return { success: false, error: 'No message ID returned from email service' };
+    }
+
+    console.log(`Password reset email sent successfully to ${toEmail} for store ${storeSlug}`);
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    return { success: false, error: `Failed to send password reset email: ${errorMessage}` };
+  }
+}
+

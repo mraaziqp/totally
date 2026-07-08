@@ -51,6 +51,10 @@ export default function TenantDashboard() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordChangeStatus, setPasswordChangeStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [passwordChangeMessage, setPasswordChangeMessage] = useState('');
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
+  const [forgotPasswordError, setForgotPasswordError] = useState('');
 
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
@@ -314,6 +318,29 @@ export default function TenantDashboard() {
     }
   };
 
+  const handleForgotPassword = async () => {
+    setForgotPasswordLoading(true);
+    setForgotPasswordMessage('');
+    setForgotPasswordError('');
+    try {
+      const res = await fetch('/api/admin/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storeSlug }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setForgotPasswordMessage(data.message);
+      } else {
+        setForgotPasswordError(data.error || 'Failed to send password reset request.');
+      }
+    } catch (error) {
+      setForgotPasswordError('Failed to reach the server. Please try again.');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -325,29 +352,94 @@ export default function TenantDashboard() {
           <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lock size={32} />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">{storeSlug?.replace(/-/g, ' ').toUpperCase()} ADMIN</h2>
-          <p className="text-slate-500 mb-8 text-sm">Enter the tenant password to manage your unit</p>
-          <div className="space-y-4">
-            <input 
-              type="password" 
-              placeholder="Enter password"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') handleLogin();
-              }}
-            />
-            {authError && (
-              <p className="text-sm font-medium text-rose-600 -mt-2">{authError}</p>
-            )}
-            <button
-              onClick={handleLogin}
-              className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg"
-            >
-              Unlock Dashboard
-            </button>
-          </div>
+
+          {!forgotPasswordMode ? (
+            <>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">{storeSlug?.replace(/-/g, ' ').toUpperCase()} ADMIN</h2>
+              <p className="text-slate-500 mb-8 text-sm">Enter the tenant password to manage your unit</p>
+              <div className="space-y-4">
+                <input 
+                  type="password" 
+                  placeholder="Enter password"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') handleLogin();
+                  }}
+                />
+                {authError && (
+                  <p className="text-sm font-medium text-rose-600 -mt-2">{authError}</p>
+                )}
+                <button
+                  onClick={handleLogin}
+                  className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg"
+                >
+                  Unlock Dashboard
+                </button>
+                <button
+                  onClick={() => {
+                    setForgotPasswordMode(true);
+                    setForgotPasswordMessage('');
+                    setForgotPasswordError('');
+                  }}
+                  className="inline-block mt-4 text-sm font-semibold text-slate-500 hover:text-emerald-600 transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">FORGOT PASSWORD</h2>
+              <p className="text-slate-500 mb-6 text-sm">
+                A temporary password will be sent to the email address registered for this unit.
+              </p>
+              
+              <div className="space-y-4">
+                {forgotPasswordMessage && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-xl text-left flex gap-3 text-green-800 text-sm">
+                    <Check className="text-green-600 shrink-0 mt-0.5" size={18} />
+                    <p>{forgotPasswordMessage}</p>
+                  </div>
+                )}
+                
+                {forgotPasswordError && (
+                  <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-left flex gap-3 text-rose-800 text-sm">
+                    <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={18} />
+                    <p>{forgotPasswordError}</p>
+                  </div>
+                )}
+
+                {!forgotPasswordMessage && (
+                  <button
+                    onClick={handleForgotPassword}
+                    disabled={forgotPasswordLoading}
+                    className="w-full bg-slate-900 text-white font-bold py-3 rounded-xl hover:bg-slate-800 transition-all shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {forgotPasswordLoading ? (
+                      <>
+                        <Loader2 size={18} className="animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send size={18} />
+                        Send Reset Password Email
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setForgotPasswordMode(false)}
+                  className="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition-all"
+                >
+                  Back to Login
+                </button>
+              </div>
+            </>
+          )}
         </motion.div>
       </div>
     );

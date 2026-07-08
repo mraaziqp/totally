@@ -4,8 +4,9 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
-import { sendBookingConfirmation, sendAdminNotification } from "./api/_lib/email";
+import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail } from "./api/_lib/email";
 import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
+import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -124,6 +125,53 @@ async function startServer() {
     } catch (error) {
       console.error("Error changing password:", error);
       res.status(500).json({ error: "Failed to change password" });
+    }
+  });
+
+  // Admin: Forgot Password (resets password to temporary code and emails the manager)
+  app.post("/api/admin/forgot-password", async (req, res) => {
+    try {
+      const { storeSlug } = req.body;
+      if (!storeSlug || typeof storeSlug !== 'string') {
+        return res.status(400).json({ error: 'storeSlug is required' });
+      }
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store) return res.status(404).json({ error: 'Store not found' });
+      if (!store.contactEmail) {
+        return res.status(400).json({ error: 'This unit does not have a configured contact email. Please contact the system administrator.' });
+      }
+
+      // Generate a secure 8-character temporary password
+      const tempPassword = crypto.randomBytes(4).toString('hex');
+      await prisma.store.update({ where: { slug: storeSlug }, data: { password: hashPassword(tempPassword) } });
+
+      const emailResult = await sendPasswordResetEmail(
+        store.name,
+        store.slug,
+        store.contactEmail,
+        tempPassword
+      );
+
+      if (!emailResult.success) {
+        console.error(`Failed to send password reset email: ${emailResult.error}`);
+        return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
+      }
+
+      const email = store.contactEmail;
+      const [localPart, domain] = email.split('@');
+      const maskedLocal = localPart.length > 2 
+        ? `${localPart[0]}***${localPart[localPart.length - 1]}` 
+        : `${localPart[0]}***`;
+      const maskedEmail = `${maskedLocal}@${domain}`;
+
+      res.json({ 
+        success: true, 
+        message: `A temporary password has been sent to the registered email address: ${maskedEmail}` 
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ error: "Failed to reset password" });
     }
   });
 
