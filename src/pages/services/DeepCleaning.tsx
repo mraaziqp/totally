@@ -51,7 +51,11 @@ export default function DeepCleaning() {
   }, []);
 
   useEffect(() => {
-    if (storeData?.pageTitle) document.title = storeData.pageTitle.replace(/TotalLŸ/g, 'CleanDeep');
+    if (storeData?.pageTitle) {
+      document.title = storeData.pageTitle;
+    } else {
+      document.title = "Professional Deep Soft Cleaning Services | CleanDeep";
+    }
     if (storeData?.pageDescription) {
       let meta = document.querySelector('meta[name="description"]');
       if (!meta) {
@@ -59,7 +63,7 @@ export default function DeepCleaning() {
         meta.setAttribute('name', 'description');
         document.head.appendChild(meta);
       }
-      meta.setAttribute('content', storeData.pageDescription.replace(/TotalLŸ/g, 'CleanDeep'));
+      meta.setAttribute('content', storeData.pageDescription);
     }
   }, [storeData]);
 
@@ -138,7 +142,7 @@ export default function DeepCleaning() {
                {storeData?.tagline || "Premium Deep Soft Cleaning"}
             </span>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-slate-900 leading-[1.1] mb-6 tracking-tight">
-               {storeData?.heroHeadline ? storeData.heroHeadline.replace(/TotalLŸ/g, 'CleanDeep') : "CleanDeep - Deep Soft Cleaning"}
+               {storeData?.heroHeadline || "CleanDeep - Deep Soft Cleaning"}
             </h1>
             
             {/* Mission Statement */}
@@ -154,7 +158,7 @@ export default function DeepCleaning() {
                 </div>
                 <div>
                   <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Call / WhatsApp</p>
-                  <p className="text-sm font-bold text-slate-800">{storeData?.contactPhone || "[Insert Client Phone]"}</p>
+                  <p className="text-sm font-bold text-slate-800">{storeData?.contactPhone || "0670240972"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -163,7 +167,7 @@ export default function DeepCleaning() {
                 </div>
                 <div>
                   <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Email Us</p>
-                  <p className="text-sm font-bold text-slate-800 break-all">{storeData?.contactEmail || "info@cleandeep.co.za"}</p>
+                  <p className="text-sm font-bold text-slate-800 break-all">{storeData?.contactEmail || "cleandeep.za@gmail.com"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -172,7 +176,7 @@ export default function DeepCleaning() {
                 </div>
                 <div>
                   <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Our Area</p>
-                  <p className="text-sm font-bold text-slate-800">{storeData?.address || "Cape Town, South Africa"}</p>
+                  <p className="text-sm font-bold text-slate-800">{storeData?.address || "2 Second Street Maitland"}</p>
                 </div>
               </div>
             </div>
@@ -496,7 +500,7 @@ export default function DeepCleaning() {
             <div className="space-y-6 text-slate-700 leading-relaxed">
               <div className="prose prose-slate max-w-none text-base sm:text-lg">
                 {storeData?.aboutUsText ? (
-                  <p className="whitespace-pre-wrap">{storeData.aboutUsText.replace(/TotalLŸ/g, 'CleanDeep')}</p>
+                  <p className="whitespace-pre-wrap">{storeData.aboutUsText}</p>
                 ) : (
                   <>
                     <p>
@@ -545,21 +549,15 @@ export default function DeepCleaning() {
             
             {/* Social Links */}
             <div className="flex gap-3 mb-6">
-              {storeData?.facebookUrl && (
-                <a href={storeData.facebookUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
-                  <Facebook size={18} />
-                </a>
-              )}
-              {storeData?.instagramUrl && (
-                <a href={storeData.instagramUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
-                  <Instagram size={18} />
-                </a>
-              )}
-              {storeData?.tiktokUrl && (
-                <a href={storeData.tiktokUrl} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
-                  <TikTokIcon className="w-[18px] h-[18px]" />
-                </a>
-              )}
+              <a href={storeData?.facebookUrl || "https://www.facebook.com/share/1E9N7NCcUe/?mibextid=wwXIfr"} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
+                <Facebook size={18} />
+              </a>
+              <a href={storeData?.instagramUrl || "https://www.instagram.com/cleandeep_cpt1?igsh=MWE4a2h4bDlwMXdvOQ%3D%3D&utm_source=qr"} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
+                <Instagram size={18} />
+              </a>
+              <a href={storeData?.tiktokUrl || "https://www.tiktok.com/@cleandeep_cpt1?is_from_webapp=1&sender_device=pc"} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-full bg-slate-800 text-slate-400 hover:bg-emerald-500 hover:text-white flex items-center justify-center transition-colors">
+                <TikTokIcon className="w-[18px] h-[18px]" />
+              </a>
             </div>
             
             <p className="flex items-center gap-2 text-xs">
@@ -569,9 +567,9 @@ export default function DeepCleaning() {
           <div>
             <h4 className="text-white font-bold mb-6 uppercase tracking-widest text-xs">Contact Us</h4>
             <ul className="space-y-4 text-sm">
-              <li>{storeData?.contactEmail || "info@cleandeep.co.za"}</li>
-              <li>{storeData?.contactPhone || "[Insert Client Phone Number]"}</li>
-              <li>{storeData?.address || "Cape Town, South Africa"}</li>
+              <li>{storeData?.contactEmail || "cleandeep.za@gmail.com"}</li>
+              <li>{storeData?.contactPhone || "0670240972"}</li>
+              <li>{storeData?.address || "2 Second Street Maitland"}</li>
             </ul>
           </div>
           <div>
