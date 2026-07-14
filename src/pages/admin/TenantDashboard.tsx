@@ -24,9 +24,14 @@ import {
   Zap,
   KeyRound,
   Trash2,
-  Pencil
+  Pencil,
+  Upload,
+  Star,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { uploadImage } from '../../lib/uploadImage';
 
 const renderNotes = (notes: string | null) => {
   if (!notes) return '—';
@@ -70,6 +75,14 @@ export default function TenantDashboard() {
   const [editingService, setEditingService] = useState<any>(null);
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', price: '' });
   const [savingService, setSavingService] = useState(false);
+  const [testimonials, setTestimonials] = useState<any[]>([]);
+  const [editingTestimonial, setEditingTestimonial] = useState<any>(null);
+  const [testimonialForm, setTestimonialForm] = useState({ authorName: '', authorRole: '', quote: '', rating: 5, avatarUrl: '', isPublished: true });
+  const [savingTestimonial, setSavingTestimonial] = useState(false);
+  const [uploadingAboutImage, setUploadingAboutImage] = useState(false);
+  const [uploadingTestimonialAvatar, setUploadingTestimonialAvatar] = useState(false);
+  const [uploadingGalleryIdx, setUploadingGalleryIdx] = useState<number | null>(null);
+  const [uploadError, setUploadError] = useState('');
   const [testEmail, setTestEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -91,6 +104,7 @@ export default function TenantDashboard() {
     tagline: '',
     missionText: '',
     heroImageUrl: '',
+    aboutImageUrl: '',
     servicesHeadline: 'Our Specialised Services',
     servicesDescription: '',
     aboutHeading: 'Our Journey & Core Values',
@@ -134,6 +148,7 @@ export default function TenantDashboard() {
         tagline: storeInfo.tagline || '',
         missionText: storeInfo.missionText || '',
         heroImageUrl: storeInfo.heroImageUrl || '',
+        aboutImageUrl: storeInfo.aboutImageUrl || '',
         servicesHeadline: storeInfo.servicesHeadline || 'Our Specialised Services',
         servicesDescription: storeInfo.servicesDescription || '',
         aboutHeading: storeInfo.aboutHeading || 'Our Journey & Core Values',
@@ -150,6 +165,7 @@ export default function TenantDashboard() {
         address: storeInfo.address || '',
       });
       setGalleryImages(Array.isArray(storeInfo.galleryImages) ? storeInfo.galleryImages : []);
+      setTestimonials(Array.isArray(storeInfo.testimonials) ? storeInfo.testimonials : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -315,6 +331,122 @@ export default function TenantDashboard() {
       }
     } catch (error) {
       alert('Failed to delete service');
+    }
+  };
+
+  const resetTestimonialForm = () => {
+    setEditingTestimonial(null);
+    setTestimonialForm({ authorName: '', authorRole: '', quote: '', rating: 5, avatarUrl: '', isPublished: true });
+  };
+
+  const handleSaveTestimonial = async () => {
+    if (!testimonialForm.authorName.trim() || !testimonialForm.quote.trim()) {
+      alert('Client name and quote are required');
+      return;
+    }
+    setSavingTestimonial(true);
+    try {
+      const isEditing = Boolean(editingTestimonial);
+      const res = await fetch('/api/admin/testimonials', {
+        method: isEditing ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({
+          ...(isEditing ? { id: editingTestimonial.id } : {}),
+          storeSlug,
+          ...testimonialForm,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTestimonials(prev =>
+          isEditing ? prev.map(t => (t.id === saved.id ? saved : t)) : [...prev, saved]
+        );
+        resetTestimonialForm();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Failed to save testimonial');
+      }
+    } catch (error) {
+      alert('Failed to save testimonial');
+    } finally {
+      setSavingTestimonial(false);
+    }
+  };
+
+  const handleEditTestimonial = (testimonial: any) => {
+    setEditingTestimonial(testimonial);
+    setTestimonialForm({
+      authorName: testimonial.authorName || '',
+      authorRole: testimonial.authorRole || '',
+      quote: testimonial.quote || '',
+      rating: testimonial.rating || 5,
+      avatarUrl: testimonial.avatarUrl || '',
+      isPublished: testimonial.isPublished ?? true,
+    });
+  };
+
+  const handleDeleteTestimonial = async (testimonial: any) => {
+    if (!confirm(`Delete the review from "${testimonial.authorName}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ id: testimonial.id, storeSlug }),
+      });
+      if (res.ok) {
+        setTestimonials(prev => prev.filter(t => t.id !== testimonial.id));
+        if (editingTestimonial?.id === testimonial.id) resetTestimonialForm();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Failed to delete testimonial');
+      }
+    } catch (error) {
+      alert('Failed to delete testimonial');
+    }
+  };
+
+  const handleTogglePublish = async (testimonial: any) => {
+    try {
+      const res = await fetch('/api/admin/testimonials', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ id: testimonial.id, storeSlug, isPublished: !testimonial.isPublished }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setTestimonials(prev => prev.map(t => (t.id === saved.id ? saved : t)));
+      }
+    } catch (error) {
+      console.error('Failed to toggle testimonial visibility', error);
+    }
+  };
+
+  const handleUploadImage = async (file: File, target: 'about' | 'testimonial' | number) => {
+    setUploadError('');
+    if (target === 'about') setUploadingAboutImage(true);
+    else if (target === 'testimonial') setUploadingTestimonialAvatar(true);
+    else setUploadingGalleryIdx(target);
+
+    try {
+      const folder = target === 'about' ? 'about' : target === 'testimonial' ? 'testimonials' : 'gallery';
+      const url = await uploadImage(file, storeSlug!, password, folder);
+      if (target === 'about') {
+        setCmsForm(prev => ({ ...prev, aboutImageUrl: url }));
+      } else if (target === 'testimonial') {
+        setTestimonialForm(prev => ({ ...prev, avatarUrl: url }));
+      } else {
+        setGalleryImages(prev => {
+          const updated = [...prev];
+          updated[target] = { ...updated[target], url };
+          return updated;
+        });
+      }
+    } catch (error) {
+      setUploadError((error as Error).message || 'Failed to upload image');
+    } finally {
+      if (target === 'about') setUploadingAboutImage(false);
+      else if (target === 'testimonial') setUploadingTestimonialAvatar(false);
+      else setUploadingGalleryIdx(null);
     }
   };
 
@@ -1204,54 +1336,211 @@ export default function TenantDashboard() {
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">The Full Story</label>
-                      <textarea 
+                      <textarea
                         className="w-full h-48 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all resize-none"
                         placeholder="Tell your story..."
                         value={cmsForm.aboutUsText}
                         onChange={e => setCmsForm({...cmsForm, aboutUsText: e.target.value})}
                       />
                     </div>
+
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">About Section Photo</label>
+                      <p className="text-xs text-slate-400 -mt-1 mb-2">This is the photo shown next to your story on the live site.</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-24 h-24 rounded-2xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                          {cmsForm.aboutImageUrl && (
+                            <img src={cmsForm.aboutImageUrl} referrerPolicy="no-referrer" alt="About preview" className="w-full h-full object-cover" />
+                          )}
+                        </div>
+                        <div className="flex-1 space-y-2">
+                          <label className={cn(
+                            "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all",
+                            uploadingAboutImage ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-slate-800"
+                          )}>
+                            {uploadingAboutImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                            {uploadingAboutImage ? 'Uploading...' : 'Upload Photo'}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              disabled={uploadingAboutImage}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadImage(file, 'about');
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                          <p className="text-[11px] text-slate-400">JPG, PNG, WEBP or GIF, up to 5MB.</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
                 {/* 4. Testimonials */}
                 <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
                     <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center text-white", brandColor)}>4</span>
-                    Client Testimonial
+                    Client Testimonials
                   </h3>
-                  
-                  <div className="space-y-6">
+                  <p className="text-xs text-slate-400 mb-6">
+                    Add real reviews from real clients. Only <strong>published</strong> reviews appear on your live site — use the eye icon to hide one without deleting it.
+                  </p>
+
+                  {testimonials.length > 0 && (
+                    <div className="space-y-3 mb-6">
+                      {testimonials.map(t => (
+                        <div key={t.id} className={cn("p-4 border rounded-xl transition-colors", t.isPublished ? "border-slate-200" : "border-slate-100 bg-slate-50/50 opacity-60")}>
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                                {t.avatarUrl && <img src={t.avatarUrl} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-bold text-slate-900 text-sm truncate">{t.authorName}</p>
+                                  <div className="flex shrink-0">
+                                    {[1,2,3,4,5].map(i => <Star key={i} size={11} className={i <= t.rating ? "text-amber-400 fill-current" : "text-slate-200 fill-current"} />)}
+                                  </div>
+                                </div>
+                                {t.authorRole && <p className="text-xs text-slate-400">{t.authorRole}</p>}
+                                <p className="text-sm text-slate-600 mt-1 line-clamp-2">{t.quote}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleTogglePublish(t)}
+                                title={t.isPublished ? 'Published — click to hide' : 'Hidden — click to publish'}
+                                className={cn(
+                                  "w-9 h-9 rounded-lg transition-colors flex items-center justify-center",
+                                  t.isPublished ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "bg-slate-100 text-slate-400 hover:bg-slate-200"
+                                )}
+                              >
+                                {t.isPublished ? <Eye size={16} /> : <EyeOff size={16} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleEditTestimonial(t)}
+                                className="w-9 h-9 rounded-lg bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-700 transition-colors flex items-center justify-center"
+                              >
+                                <Pencil size={16} />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteTestimonial(t)}
+                                className="w-9 h-9 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                    <p className="text-xs font-bold text-slate-700">{editingTestimonial ? 'Edit Review' : 'Add a New Review'}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Client Name</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. Sarah Adams"
+                          value={testimonialForm.authorName}
+                          onChange={e => setTestimonialForm({ ...testimonialForm, authorName: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role / Area (Optional)</label>
+                        <input
+                          type="text"
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
+                          placeholder="e.g. Homeowner, Maitland"
+                          value={testimonialForm.authorRole}
+                          onChange={e => setTestimonialForm({ ...testimonialForm, authorRole: e.target.value })}
+                        />
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Feedback Quote</label>
-                      <textarea 
-                        className="w-full h-32 px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all resize-none"
-                        placeholder="Enter client testimonial text..."
-                        value={cmsForm.testimonialText}
-                        onChange={e => setCmsForm({...cmsForm, testimonialText: e.target.value})}
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Review Text</label>
+                      <textarea
+                        className="w-full h-24 px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all resize-none"
+                        placeholder="Paste or type what the client actually said..."
+                        value={testimonialForm.quote}
+                        onChange={e => setTestimonialForm({ ...testimonialForm, quote: e.target.value })}
                       />
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-wrap items-center gap-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Client Name</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
-                          placeholder="e.g. Moulana Luqmaan"
-                          value={cmsForm.testimonialAuthor}
-                          onChange={e => setCmsForm({...cmsForm, testimonialAuthor: e.target.value})}
-                        />
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Rating</label>
+                        <div className="flex gap-1">
+                          {[1,2,3,4,5].map(i => (
+                            <button
+                              type="button"
+                              key={i}
+                              onClick={() => setTestimonialForm({ ...testimonialForm, rating: i })}
+                              className="p-0.5"
+                            >
+                              <Star size={22} className={i <= testimonialForm.rating ? "text-amber-400 fill-current" : "text-slate-200 fill-current"} />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Client Role / Label</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
-                          placeholder="e.g. Community Leader"
-                          value={cmsForm.testimonialAuthorRole}
-                          onChange={e => setCmsForm({...cmsForm, testimonialAuthorRole: e.target.value})}
-                        />
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block">Client Photo (Optional)</label>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-white border border-slate-200 overflow-hidden shrink-0">
+                            {testimonialForm.avatarUrl && <img src={testimonialForm.avatarUrl} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover" />}
+                          </div>
+                          <label className={cn(
+                            "inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all",
+                            uploadingTestimonialAvatar ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
+                          )}>
+                            {uploadingTestimonialAvatar ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                            Upload
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              disabled={uploadingTestimonialAvatar}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadImage(file, 'testimonial');
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+                        </div>
                       </div>
+                    </div>
+                    {uploadError && <p className="text-xs font-medium text-rose-600">{uploadError}</p>}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleSaveTestimonial}
+                        disabled={savingTestimonial}
+                        className={cn(
+                          "px-6 py-2.5 rounded-xl text-white font-bold transition-all flex items-center justify-center gap-2",
+                          savingTestimonial ? "bg-slate-300 cursor-not-allowed" : "bg-slate-900 hover:bg-slate-800"
+                        )}
+                      >
+                        {savingTestimonial ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        {editingTestimonial ? 'Update Review' : 'Add Review'}
+                      </button>
+                      {editingTestimonial && (
+                        <button
+                          type="button"
+                          onClick={resetTestimonialForm}
+                          className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 font-bold hover:bg-slate-100 transition-all"
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1264,39 +1553,43 @@ export default function TenantDashboard() {
                   </h3>
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-6 space-y-2">
                     <p className="text-xs font-bold text-slate-700 flex items-center gap-2">
-                      <ImageIcon size={14} /> How to Add Images
+                      <ImageIcon size={14} /> Show Off Your Completed Jobs
                     </p>
                     <ul className="text-xs text-slate-600 space-y-1 list-disc pl-5">
-                      <li><strong>Method 1:</strong> Paste a direct image URL (e.g., from Unsplash, Imgur, or your hosting)</li>
-                      <li><strong>Method 2:</strong> Upload files to <code className="bg-white px-2 py-0.5 rounded text-slate-500">public/images/{storeSlug}/</code> folder, then reference as <code className="bg-white px-2 py-0.5 rounded text-slate-500">/images/{storeSlug}/photo.jpg</code></li>
-                      <li><strong>First image:</strong> Will display larger (featured) on service pages</li>
-                      <li><strong>Captions:</strong> Optional - adds text overlay to images in gallery</li>
+                      <li>Click <strong>Upload a Job Photo</strong> below and pick a photo straight from your device — no need to host it anywhere else.</li>
+                      <li><strong>First image:</strong> Displays larger (featured) on the live site.</li>
+                      <li><strong>Captions:</strong> Optional — adds a short text overlay to the photo (e.g. "Carpet — Before & After").</li>
                     </ul>
                   </div>
 
                   <div className="space-y-3 mb-4">
                     {galleryImages.map((img, idx) => (
                       <div key={idx} className="flex gap-3 items-center">
-                        {img.url && (
-                          <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
-                            <img src={img.url} alt="" className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <input
-                          type="text"
-                          placeholder="Image URL (https://... or /images/gifting/photo.jpg)"
-                          className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
-                          value={img.url}
-                          onChange={e => {
-                            const updated = [...galleryImages];
-                            updated[idx] = { ...updated[idx], url: e.target.value };
-                            setGalleryImages(updated);
-                          }}
-                        />
+                        <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-slate-100 border border-slate-200">
+                          {img.url && <img src={img.url} referrerPolicy="no-referrer" alt="" className="w-full h-full object-cover" />}
+                        </div>
+                        <label className={cn(
+                          "shrink-0 inline-flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-all",
+                          uploadingGalleryIdx === idx ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-white border border-slate-200 text-slate-700 hover:border-slate-400"
+                        )}>
+                          {uploadingGalleryIdx === idx ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                          {img.url ? 'Replace' : 'Upload'}
+                          <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/gif"
+                            className="hidden"
+                            disabled={uploadingGalleryIdx === idx}
+                            onChange={e => {
+                              const file = e.target.files?.[0];
+                              if (file) handleUploadImage(file, idx);
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
                         <input
                           type="text"
                           placeholder="Caption (optional)"
-                          className="w-40 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
+                          className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-slate-400 transition-colors"
                           value={img.caption}
                           onChange={e => {
                             const updated = [...galleryImages];
@@ -1315,12 +1608,14 @@ export default function TenantDashboard() {
                     ))}
                   </div>
 
+                  {uploadError && <p className="text-xs font-medium text-rose-600 mb-3">{uploadError}</p>}
+
                   <button
                     type="button"
                     onClick={() => setGalleryImages([...galleryImages, { url: '', caption: '' }])}
                     className="w-full py-3 border-2 border-dashed border-slate-200 rounded-xl text-sm font-bold text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-colors flex items-center justify-center gap-2"
                   >
-                    <Plus size={16} /> Add Image
+                    <Plus size={16} /> Add Another Photo Slot
                   </button>
                 </div>
 

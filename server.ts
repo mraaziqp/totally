@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
 import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail } from "./api/_lib/email";
 import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
+import { getSupabaseAdmin, MEDIA_BUCKET } from "./api/_lib/supabase";
 import crypto from "crypto";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,7 +18,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: "10mb" }));
 
   // API Routes
   
@@ -246,6 +247,163 @@ async function startServer() {
     }
   });
 
+  // Admin: Upload an image to Supabase Storage (about photo, gallery, testimonial avatar)
+  const UPLOAD_ALLOWED_TYPES: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/gif': 'gif',
+  };
+  const UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+
+  app.post("/api/admin/upload", async (req, res) => {
+    try {
+      const { storeSlug, fileType, dataBase64, folder } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+
+      if (!storeSlug || typeof storeSlug !== 'string') {
+        return res.status(400).json({ error: 'storeSlug is required' });
+      }
+      if (!fileType || !UPLOAD_ALLOWED_TYPES[fileType]) {
+        return res.status(400).json({ error: 'Unsupported image type. Use JPG, PNG, WEBP, or GIF.' });
+      }
+      if (!dataBase64 || typeof dataBase64 !== 'string') {
+        return res.status(400).json({ error: 'No file data received' });
+      }
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const buffer = Buffer.from(dataBase64, 'base64');
+      if (buffer.length > UPLOAD_MAX_BYTES) {
+        return res.status(400).json({ error: 'Image is too large. Please keep uploads under 5MB.' });
+      }
+
+      const ext = UPLOAD_ALLOWED_TYPES[fileType];
+      const safeFolder = (typeof folder === 'string' && /^[a-z0-9-]+$/i.test(folder)) ? folder : 'uploads';
+      const safeName = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const path = `${storeSlug}/${safeFolder}/${safeName}`;
+
+      let supabase;
+      try {
+        supabase = getSupabaseAdmin();
+      } catch (e) {
+        return res.status(503).json({ error: (e as Error).message });
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from(MEDIA_BUCKET)
+        .upload(path, buffer, { contentType: fileType, upsert: false });
+
+      if (uploadError) {
+        console.error('Supabase upload error:', uploadError);
+        return res.status(502).json({
+          error: `Image storage upload failed: ${uploadError.message}. Make sure a public bucket named "${MEDIA_BUCKET}" exists in your Supabase project.`,
+        });
+      }
+
+      const { data: publicUrlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+      res.status(201).json({ url: publicUrlData.publicUrl });
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  });
+
+  // Admin: Manage testimonials (create / update / delete)
+  function clampRating(value: unknown): number {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return 5;
+    return Math.min(5, Math.max(1, Math.round(n)));
+  }
+
+  app.post("/api/admin/testimonials", async (req, res) => {
+    try {
+      const { storeSlug, authorName, authorRole, quote, rating, avatarUrl, isPublished, displayOrder } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+      if (!storeSlug || !authorName || !quote) {
+        return res.status(400).json({ error: 'storeSlug, authorName and quote are required' });
+      }
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const testimonial = await prisma.testimonial.create({
+        data: {
+          storeId: store.id,
+          authorName,
+          authorRole: authorRole || null,
+          quote,
+          rating: clampRating(rating),
+          avatarUrl: avatarUrl || null,
+          isPublished: isPublished !== undefined ? Boolean(isPublished) : true,
+          displayOrder: Number.isFinite(Number(displayOrder)) ? Number(displayOrder) : 0,
+        },
+      });
+      res.status(201).json(testimonial);
+    } catch (error) {
+      console.error("Error creating testimonial:", error);
+      res.status(500).json({ error: "Failed to create testimonial" });
+    }
+  });
+
+  app.patch("/api/admin/testimonials", async (req, res) => {
+    try {
+      const { id, storeSlug, authorName, authorRole, quote, rating, avatarUrl, isPublished, displayOrder } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+      if (!id || !storeSlug) return res.status(400).json({ error: 'id and storeSlug are required' });
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const existing = await prisma.testimonial.findUnique({ where: { id } });
+      if (!existing || existing.storeId !== store.id) return res.status(404).json({ error: 'Testimonial not found' });
+
+      const updateData: Record<string, unknown> = {};
+      if (authorName !== undefined) updateData.authorName = authorName;
+      if (authorRole !== undefined) updateData.authorRole = authorRole || null;
+      if (quote !== undefined) updateData.quote = quote;
+      if (rating !== undefined) updateData.rating = clampRating(rating);
+      if (avatarUrl !== undefined) updateData.avatarUrl = avatarUrl || null;
+      if (isPublished !== undefined) updateData.isPublished = Boolean(isPublished);
+      if (displayOrder !== undefined) updateData.displayOrder = Number.isFinite(Number(displayOrder)) ? Number(displayOrder) : 0;
+
+      const testimonial = await prisma.testimonial.update({ where: { id }, data: updateData });
+      res.json(testimonial);
+    } catch (error) {
+      console.error("Error updating testimonial:", error);
+      res.status(500).json({ error: "Failed to update testimonial" });
+    }
+  });
+
+  app.delete("/api/admin/testimonials", async (req, res) => {
+    try {
+      const { id, storeSlug } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+      if (!id || !storeSlug) return res.status(400).json({ error: 'id and storeSlug are required' });
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const existing = await prisma.testimonial.findUnique({ where: { id } });
+      if (!existing || existing.storeId !== store.id) return res.status(404).json({ error: 'Testimonial not found' });
+
+      await prisma.testimonial.delete({ where: { id } });
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting testimonial:", error);
+      res.status(500).json({ error: "Failed to delete testimonial" });
+    }
+  });
+
   // Admin: Get all leads (store-scoped requires that store's password; unscoped requires master password)
   app.get("/api/admin/leads", async (req, res) => {
     try {
@@ -284,7 +442,11 @@ async function startServer() {
       const { slug } = req.params;
       const store = await prisma.store.findUnique({
         where: { slug },
-        include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          products: { orderBy: { createdAt: 'asc' } },
+          services: { orderBy: { createdAt: 'asc' } },
+          testimonials: { orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] },
+        },
       });
       if (!store) {
         return res.status(404).json({ error: "Store not found" });
@@ -316,6 +478,7 @@ async function startServer() {
         missionText,
         aboutUsText,
         heroImageUrl,
+        aboutImageUrl,
         servicesHeadline,
         servicesDescription,
         aboutHeading,
@@ -344,6 +507,7 @@ async function startServer() {
       if (missionText !== undefined) updateData.missionText = missionText;
       if (aboutUsText !== undefined) updateData.aboutUsText = aboutUsText;
       if (heroImageUrl !== undefined) updateData.heroImageUrl = heroImageUrl;
+      if (aboutImageUrl !== undefined) updateData.aboutImageUrl = aboutImageUrl;
       if (servicesHeadline !== undefined) updateData.servicesHeadline = servicesHeadline;
       if (servicesDescription !== undefined) updateData.servicesDescription = servicesDescription;
       if (aboutHeading !== undefined) updateData.aboutHeading = aboutHeading;
@@ -363,7 +527,11 @@ async function startServer() {
 
       const store = await prisma.store.update({
         where: { slug },
-        include: { products: { orderBy: { createdAt: 'asc' } }, services: { orderBy: { createdAt: 'asc' } } },
+        include: {
+          products: { orderBy: { createdAt: 'asc' } },
+          services: { orderBy: { createdAt: 'asc' } },
+          testimonials: { orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] },
+        },
         data: updateData,
       });
 

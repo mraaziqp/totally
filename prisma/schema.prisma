@@ -22,6 +22,7 @@ model Store {
   missionText            String?
   aboutUsText            String?
   heroImageUrl           String?
+  aboutImageUrl          String?
   servicesHeadline       String?   @default("Our Specialised Services")
   servicesDescription    String?
   aboutHeading           String?   @default("Our Journey & Core Values")
@@ -41,8 +42,24 @@ model Store {
   products               Product[]
   orders                 Order[]
   leads                  Lead[]
+  testimonials           Testimonial[]
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
+}
+
+model Testimonial {
+  id           String   @id @default(cuid())
+  storeId      String
+  store        Store    @relation(fields: [storeId], references: [id])
+  authorName   String
+  authorRole   String?
+  quote        String
+  rating       Int      @default(5)
+  avatarUrl    String?
+  isPublished  Boolean  @default(true)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model Service {

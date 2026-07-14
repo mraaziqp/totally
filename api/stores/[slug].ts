@@ -10,7 +10,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === 'GET') {
     try {
-      const store = await prisma.store.findUnique({ where: { slug }, include: { products: { orderBy: { createdAt: 'asc' } }, services: true } });
+      const store = await prisma.store.findUnique({
+        where: { slug },
+        include: {
+          products: { orderBy: { createdAt: 'asc' } },
+          services: true,
+          testimonials: { orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] },
+        },
+      });
       if (!store) return res.status(404).json({ error: 'Store not found' });
       const { password: _password, ...safeStore } = store;
       return res.json(safeStore);
@@ -36,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         missionText,
         aboutUsText,
         heroImageUrl,
+        aboutImageUrl,
         servicesHeadline,
         servicesDescription,
         aboutHeading,
@@ -66,6 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (missionText !== undefined) updateData.missionText = missionText;
       if (aboutUsText !== undefined) updateData.aboutUsText = aboutUsText;
       if (heroImageUrl !== undefined) updateData.heroImageUrl = heroImageUrl;
+      if (aboutImageUrl !== undefined) updateData.aboutImageUrl = aboutImageUrl;
       if (servicesHeadline !== undefined) updateData.servicesHeadline = servicesHeadline;
       if (servicesDescription !== undefined) updateData.servicesDescription = servicesDescription;
       if (aboutHeading !== undefined) updateData.aboutHeading = aboutHeading;
@@ -85,7 +94,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const store = await prisma.store.update({
         where: { slug },
-        include: { products: { orderBy: { createdAt: 'asc' } }, services: true },
+        include: {
+          products: { orderBy: { createdAt: 'asc' } },
+          services: true,
+          testimonials: { orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }] },
+        },
         data: updateData,
       });
 

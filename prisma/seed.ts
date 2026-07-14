@@ -18,7 +18,7 @@ async function main() {
       name: 'Deep Soft Cleaning',
       themeColor: '#10b981',
       contactPhone: '0670240972',
-      contactEmail: 'cleandeep.za@gmail.com',
+      contactEmail: 'info@cleandeep.co.za',
       pageTitle: 'Professional Deep Soft Cleaning Services | CleanDeep',
       pageDescription: 'Expert deep soft cleaning for carpets, mattresses, vehicles, and upholstery. Ihsaan-driven service excellence across Cape Town.',
       tagline: 'Premium Soft Cleaning',
