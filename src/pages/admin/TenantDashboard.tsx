@@ -1372,7 +1372,7 @@ export default function TenantDashboard() {
                               }}
                             />
                           </label>
-                          <p className="text-[11px] text-slate-400">JPG, PNG, WEBP or GIF, up to 5MB.</p>
+                          <p className="text-[11px] text-slate-400">JPG, PNG, WEBP or GIF, up to 3MB.</p>
                         </div>
                       </div>
                     </div>

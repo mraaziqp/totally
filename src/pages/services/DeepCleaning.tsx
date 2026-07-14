@@ -42,12 +42,20 @@ const SERVICE_ICONS: Record<string, React.ElementType> = {
 export default function DeepCleaning() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch('/api/stores/deep-cleaning')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Store API returned ${res.status}`);
+        return res.json();
+      })
       .then(data => { setStoreData(data); setLoading(false); })
-      .catch(err => { console.error('Error fetching store data:', err); setLoading(false); });
+      .catch(err => {
+        console.error('Error fetching store data:', err);
+        setLoadError(true);
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -98,6 +106,11 @@ export default function DeepCleaning() {
 
   return (
     <div className="min-h-screen bg-slate-50 overflow-x-hidden">
+      {loadError && (
+        <div className="bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-2 px-4">
+          We're having trouble loading live content right now. Some details on this page may be out of date — please call or WhatsApp {storeData?.contactPhone || "0670240972"} to book directly.
+        </div>
+      )}
       {/* Navbar */}
       <nav className="bg-white border-b border-slate-100 py-3 px-4 sm:px-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">

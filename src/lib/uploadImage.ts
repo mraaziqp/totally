@@ -1,5 +1,7 @@
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-const MAX_BYTES = 5 * 1024 * 1024;
+// Vercel Node.js Functions cap request bodies at ~4.5MB; base64 inflates a
+// file by ~33%, so the raw file limit must stay well under that ceiling.
+const MAX_BYTES = 3 * 1024 * 1024;
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -19,7 +21,7 @@ export async function uploadImage(file: File, storeSlug: string, password: strin
     throw new Error('Unsupported image type. Please use JPG, PNG, WEBP, or GIF.');
   }
   if (file.size > MAX_BYTES) {
-    throw new Error('Image is too large. Please keep uploads under 5MB.');
+    throw new Error('Image is too large. Please keep uploads under 3MB.');
   }
 
   const dataBase64 = await fileToBase64(file);

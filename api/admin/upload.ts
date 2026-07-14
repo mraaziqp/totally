@@ -3,12 +3,6 @@ import { prisma } from '../_lib/prisma';
 import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
 import { getSupabaseAdmin, MEDIA_BUCKET } from '../_lib/supabase';
 
-export const config = {
-  api: {
-    bodyParser: { sizeLimit: '8mb' },
-  },
-};
-
 const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
@@ -16,7 +10,10 @@ const ALLOWED_TYPES: Record<string, string> = {
   'image/gif': 'gif',
 };
 
-const MAX_BYTES = 5 * 1024 * 1024; // 5MB
+// Vercel Node.js Functions cap request bodies at ~4.5MB regardless of any
+// in-code config — base64 inflates a file by ~33%, so keep the raw file
+// limit well under that ceiling.
+const MAX_BYTES = 3 * 1024 * 1024; // 3MB
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -44,7 +41,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const buffer = Buffer.from(dataBase64, 'base64');
     if (buffer.length > MAX_BYTES) {
-      return res.status(400).json({ error: 'Image is too large. Please keep uploads under 5MB.' });
+      return res.status(400).json({ error: 'Image is too large. Please keep uploads under 3MB.' });
     }
 
     const ext = ALLOWED_TYPES[fileType];

@@ -254,7 +254,7 @@ async function startServer() {
     'image/webp': 'webp',
     'image/gif': 'gif',
   };
-  const UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
+  const UPLOAD_MAX_BYTES = 3 * 1024 * 1024; // keep base64 payload under Vercel's ~4.5MB request body cap
 
   app.post("/api/admin/upload", async (req, res) => {
     try {
@@ -278,7 +278,7 @@ async function startServer() {
 
       const buffer = Buffer.from(dataBase64, 'base64');
       if (buffer.length > UPLOAD_MAX_BYTES) {
-        return res.status(400).json({ error: 'Image is too large. Please keep uploads under 5MB.' });
+        return res.status(400).json({ error: 'Image is too large. Please keep uploads under 3MB.' });
       }
 
       const ext = UPLOAD_ALLOWED_TYPES[fileType];
