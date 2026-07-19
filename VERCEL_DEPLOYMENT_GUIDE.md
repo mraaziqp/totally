@@ -231,7 +231,17 @@ The Neon PostgreSQL database includes:
 - `Order` - Customer orders
 - `Lead` - Booking requests
 
-**Auto-seeded on first deployment:**
+**Not auto-seeded.** Vercel's build only runs `prisma generate && vite build` —
+it never seeds the database. The demo data below only exists if someone has
+manually run `npx tsx prisma/seed.ts` against that database at some point.
+
+**⚠️ Never run the seed script against a database with real customer data.**
+`prisma/seed.ts` starts by deleting every lead, order, service, product, and
+store before recreating them from hardcoded demo values. It now refuses to
+run unless `ALLOW_DESTRUCTIVE_SEED=true` is explicitly set, precisely to
+prevent an accidental wipe of production data.
+
+**Demo data (if seeded):**
 - Deep Cleaning unit with 7 services
 - Pressure Cleaning unit with 10 services
 - Gifting unit with 3 products

@@ -4,6 +4,18 @@ import 'dotenv/config';
 const prisma = new PrismaClient();
 
 async function main() {
+  // This script deletes every lead, order, service, product, and store
+  // before recreating demo data. It must never run against a database
+  // that holds real customer data. Require an explicit opt-in so it
+  // can't be triggered by mistake (e.g. a misremembered deploy step).
+  if (process.env.ALLOW_DESTRUCTIVE_SEED !== 'true') {
+    console.error(
+      'Refusing to run: this script deletes ALL leads, orders, services, products, and stores.\n' +
+      'If you are certain this is a throwaway/dev database, re-run with ALLOW_DESTRUCTIVE_SEED=true.'
+    );
+    process.exit(1);
+  }
+
   // Clear all existing data
   await prisma.lead.deleteMany();
   await prisma.order.deleteMany();
@@ -18,7 +30,7 @@ async function main() {
       name: 'Deep Soft Cleaning',
       themeColor: '#10b981',
       contactPhone: '0670240972',
-      contactEmail: 'cleandeep.cpt@gmail.com',
+      contactEmail: 'info@cleandeep.co.za',
       pageTitle: 'Professional Deep Soft Cleaning Services | CleanDeep',
       pageDescription: 'Expert deep soft cleaning for carpets, mattresses, vehicles, and upholstery. Ihsaan-driven service excellence across Cape Town.',
       tagline: 'Premium Soft Cleaning',
@@ -63,7 +75,7 @@ async function main() {
       name: 'High Pressure Cleaning',
       themeColor: '#14b8a6',
       contactPhone: '072 359 1276',
-      contactEmail: 'cleandeep.cpt@gmail.com',
+      contactEmail: 'info@cleandeep.co.za',
       pageTitle: 'Professional High Pressure Cleaning | TotalLŸ',
       pageDescription: 'Industrial-grade pressure washing for driveways, roofs, and exterior surfaces. Safe, eco-friendly cleaning across Cape Town.',
       tagline: 'Industrial Grade Solutions',
@@ -112,7 +124,7 @@ async function main() {
       name: 'PersonaLŸised Gifting',
       themeColor: '#f43f5e',
       contactPhone: '0718789141',
-      contactEmail: 'cleandeep.cpt@gmail.com',
+      contactEmail: 'info@cleandeep.co.za',
       pageTitle: 'Personalised Gift Studio | TotalLŸ Gifting',
       pageDescription: 'Bespoke handcrafted gifts with Arabic calligraphy. Personalised Musallahs, Madrassa Bags, and custom gift sets.',
       tagline: 'Bespoke Craftsmanship',
