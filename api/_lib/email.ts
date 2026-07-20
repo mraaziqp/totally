@@ -79,7 +79,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
 export async function sendAdminNotification(data: BookingEmailData) {
   try {
     const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.za@gmail.com';
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
