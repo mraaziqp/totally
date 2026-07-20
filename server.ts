@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
-import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail } from "./api/_lib/email";
+import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate } from "./api/_lib/email";
 import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
 import { getSupabaseAdmin, MEDIA_BUCKET } from "./api/_lib/supabase";
 import crypto from "crypto";
@@ -433,6 +433,81 @@ async function startServer() {
     } catch (error) {
       console.error("Error fetching leads:", error);
       res.status(500).json({ error: "Failed to fetch leads" });
+    }
+  });
+
+  const LEAD_VALID_STATUSES = ['NEW', 'CONTACTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
+
+  // Admin: Update a lead's status / internal notes
+  app.patch("/api/admin/leads", async (req, res) => {
+    try {
+      const { leadId, storeSlug, status, internalNotes } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+
+      if (!leadId || typeof leadId !== 'string') return res.status(400).json({ error: 'leadId is required' });
+      if (!storeSlug || typeof storeSlug !== 'string') return res.status(400).json({ error: 'storeSlug is required' });
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+      if (!lead || lead.storeId !== store.id) return res.status(404).json({ error: 'Booking not found' });
+
+      const updateData: Record<string, unknown> = {};
+      if (status !== undefined) {
+        if (!LEAD_VALID_STATUSES.includes(status)) {
+          return res.status(400).json({ error: `Invalid status. Use one of: ${LEAD_VALID_STATUSES.join(', ')}` });
+        }
+        updateData.status = status;
+      }
+      if (internalNotes !== undefined) updateData.notes = internalNotes;
+
+      const updated = await prisma.lead.update({ where: { id: leadId }, data: updateData });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating lead:", error);
+      res.status(500).json({ error: "Failed to update booking" });
+    }
+  });
+
+  // Admin: Send a status-update email to the customer
+  app.post("/api/admin/leads", async (req, res) => {
+    try {
+      const { leadId, storeSlug, message, newStatus } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+
+      if (!leadId || !storeSlug || !message) {
+        return res.status(400).json({ error: 'leadId, storeSlug, and message are required' });
+      }
+
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+
+      const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+      if (!lead || lead.storeId !== store.id) return res.status(404).json({ error: 'Booking not found' });
+
+      if (newStatus && LEAD_VALID_STATUSES.includes(newStatus)) {
+        await prisma.lead.update({ where: { id: leadId }, data: { status: newStatus } });
+      }
+
+      const result = await sendClientUpdate({
+        customerName: lead.customerName,
+        customerEmail: lead.customerEmail,
+        storeName: store.name,
+        storeSlug,
+        message,
+        status: newStatus || lead.status,
+      });
+
+      if (!result.success) return res.status(500).json({ error: result.error || 'Failed to send email' });
+      res.json({ success: true, messageId: result.messageId });
+    } catch (error) {
+      console.error("Error sending client update:", error);
+      res.status(500).json({ error: "Failed to send client update" });
     }
   });
 

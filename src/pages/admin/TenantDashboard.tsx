@@ -96,6 +96,14 @@ export default function TenantDashboard() {
   const [forgotPasswordMessage, setForgotPasswordMessage] = useState('');
   const [forgotPasswordError, setForgotPasswordError] = useState('');
 
+  // Lead editing & client-update state
+  const [selectedLead, setSelectedLead] = useState<any>(null);
+  const [editLeadStatus, setEditLeadStatus] = useState('');
+  const [clientUpdateMsg, setClientUpdateMsg] = useState('');
+  const [clientUpdateStatus, setClientUpdateStatus] = useState('');
+  const [sendingUpdate, setSendingUpdate] = useState(false);
+  const [savingLeadStatus, setSavingLeadStatus] = useState(false);
+
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
     pageTitle: '',
@@ -508,6 +516,67 @@ export default function TenantDashboard() {
       setForgotPasswordError('Failed to reach the server. Please try again.');
     } finally {
       setForgotPasswordLoading(false);
+    }
+  };
+
+  const openLeadDetail = (lead: any) => {
+    setSelectedLead(lead);
+    setEditLeadStatus(lead.status || 'NEW');
+    setClientUpdateMsg('');
+    setClientUpdateStatus('');
+  };
+
+  const handleSaveLeadStatus = async () => {
+    if (!selectedLead) return;
+    setSavingLeadStatus(true);
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ leadId: selectedLead.id, storeSlug, status: editLeadStatus }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setLeads(prev => prev.map(l => l.id === updated.id ? updated : l));
+        setSelectedLead(updated);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to update status');
+      }
+    } catch (e) {
+      alert('Failed to update status');
+    } finally {
+      setSavingLeadStatus(false);
+    }
+  };
+
+  const handleSendClientUpdate = async () => {
+    if (!selectedLead || !clientUpdateMsg.trim()) return;
+    setSendingUpdate(true);
+    setClientUpdateStatus('');
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({
+          leadId: selectedLead.id,
+          storeSlug,
+          message: clientUpdateMsg,
+          newStatus: editLeadStatus,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setClientUpdateStatus('success');
+        setLeads(prev => prev.map(l => l.id === selectedLead.id ? { ...l, status: editLeadStatus } : l));
+        setSelectedLead((prev: any) => ({ ...prev, status: editLeadStatus }));
+      } else {
+        setClientUpdateStatus('error:' + (data.error || 'Failed to send'));
+      }
+    } catch (e) {
+      setClientUpdateStatus('error:Network error');
+    } finally {
+      setSendingUpdate(false);
     }
   };
 
@@ -1013,94 +1082,186 @@ export default function TenantDashboard() {
         )}
 
         {activeTab === 'leads' && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center", brandBgLight, brandText)}>
-                  <Users size={20} />
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {[
+                { label: 'Total Bookings', value: leads.length, color: 'bg-emerald-50 text-emerald-600' },
+                { label: 'New', value: leads.filter(l => l.status === 'NEW').length, color: 'bg-blue-50 text-blue-600' },
+                { label: 'Confirmed', value: leads.filter(l => l.status === 'CONFIRMED').length, color: 'bg-green-50 text-green-600' },
+                { label: 'Completed', value: leads.filter(l => l.status === 'COMPLETED').length, color: 'bg-slate-50 text-slate-600' },
+              ].map(stat => (
+                <div key={stat.label} className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-3">
+                  <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center', stat.color)}>
+                    <Briefcase size={18} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-400 uppercase">{stat.label}</p>
+                    <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Leads</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{leads.length}</h3>
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center gap-4">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center bg-blue-50 text-blue-600")}>
-                  <Briefcase size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">New Requests</p>
-                  <h3 className="text-2xl font-bold text-slate-900">{leads.filter(l => l.status === 'NEW').length}</h3>
-                </div>
-              </div>
+              ))}
             </div>
 
-            {/* Leads Table */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-               <div className="p-6 border-b border-slate-100 bg-white">
-                  <h3 className="text-lg font-bold text-slate-900">Your Incoming Leads</h3>
-               </div>
-               <div className="overflow-x-auto">
-                 {leads.length === 0 ? (
-                   <div className="p-20 text-center text-slate-400">
-                      <AlertCircle size={40} className="mx-auto mb-4 opacity-20" />
-                      <p className="font-bold">No leads yet. They'll appear here once customers book.</p>
-                   </div>
-                 ) : (
-                   <table className="w-full text-left">
-                     <thead>
-                       <tr className="bg-slate-50/50 text-[10px] uppercase font-bold tracking-widest text-slate-400 border-b border-slate-100">
-                         <th className="px-6 py-4">Customer</th>
-                         <th className="px-6 py-4">Location</th>
-                         <th className="px-6 py-4">Date Requested</th>
-                         <th className="px-6 py-4">Details</th>
-                         <th className="px-6 py-4">Status</th>
-                       </tr>
-                     </thead>
-                     <tbody className="divide-y divide-slate-50">
-                       {leads.map((lead) => (
-                         <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors">
-                           <td className="px-6 py-4">
-                             <div>
-                               <p className="text-sm font-bold text-slate-800">{lead.customerName}</p>
-                               <p className="text-xs text-slate-500">{lead.customerEmail}</p>
-                               <p className="text-xs text-slate-500">{lead.customerPhone}</p>
-                             </div>
-                           </td>
-                           <td className="px-6 py-4">
-                             <div className="flex items-center gap-1.5 text-slate-500">
-                               <MapPin size={14} />
-                               <span className="text-sm">{lead.location}</span>
-                             </div>
-                           </td>
-                           <td className="px-6 py-4">
-                             <div className="flex items-center gap-1.5 text-slate-500">
-                               <Calendar size={14} />
-                               <span className="text-sm">{lead.requestedDate ? new Date(lead.requestedDate).toLocaleDateString() : 'N/A'}</span>
-                             </div>
-                           </td>
-                            <td className="px-6 py-4 max-w-xs">
-                              {renderNotes(lead.notes)}
-                            </td>
-                           <td className="px-6 py-4">
-                             <span className={cn(
-                               "px-3 py-1 rounded-full text-[10px] font-bold border",
-                               lead.status === 'NEW' ? "bg-blue-50 text-blue-700 border-blue-100" : "bg-slate-50 text-slate-700 border-slate-100"
-                             )}>
-                               {lead.status}
-                             </span>
-                           </td>
-                         </tr>
-                       ))}
-                     </tbody>
-                   </table>
-                 )}
-               </div>
+            <div className={cn('grid gap-6', selectedLead ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1')}>
+              {/* Bookings list */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2"><Users size={18} className="text-emerald-500" /> Bookings</h3>
+                  <button onClick={fetchData} className="text-xs text-emerald-600 font-bold hover:underline">Refresh</button>
+                </div>
+                {leads.length === 0 ? (
+                  <div className="p-16 text-center text-slate-400">
+                    <AlertCircle size={36} className="mx-auto mb-3 opacity-20" />
+                    <p className="font-bold text-sm">No bookings yet.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-50">
+                    {leads.map(lead => {
+                      const statusStyles: Record<string, string> = {
+                        NEW: 'bg-blue-50 text-blue-700 border-blue-100',
+                        CONTACTED: 'bg-purple-50 text-purple-700 border-purple-100',
+                        CONFIRMED: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                        COMPLETED: 'bg-green-50 text-green-700 border-green-100',
+                        CANCELLED: 'bg-red-50 text-red-700 border-red-100',
+                      };
+                      return (
+                        <button
+                          key={lead.id}
+                          onClick={() => openLeadDetail(lead)}
+                          className={cn(
+                            'w-full text-left px-5 py-4 hover:bg-slate-50 transition-colors',
+                            selectedLead?.id === lead.id && 'bg-emerald-50/60'
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-slate-900 text-sm truncate">{lead.customerName}</p>
+                              <p className="text-xs text-slate-500">{lead.customerPhone} • {lead.location}</p>
+                              <p className="text-xs text-slate-400 mt-0.5">
+                                {lead.requestedDate ? new Date(lead.requestedDate).toLocaleDateString('en-ZA') : 'No date'} • {new Date(lead.createdAt).toLocaleDateString('en-ZA')}
+                              </p>
+                            </div>
+                            <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 mt-0.5', statusStyles[lead.status] || statusStyles.NEW)}>
+                              {lead.status}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Booking detail + actions panel */}
+              {selectedLead && (
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2"><FileText size={16} className="text-emerald-500" /> Booking Detail</h3>
+                    <button onClick={() => setSelectedLead(null)} className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center hover:bg-slate-200 transition-colors">
+                      <X size={14} />
+                    </button>
+                  </div>
+
+                  <div className="p-5 space-y-5">
+                    {/* Customer info */}
+                    <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Customer</p>
+                      <p className="font-bold text-slate-900">{selectedLead.customerName}</p>
+                      <a href={`tel:${selectedLead.customerPhone}`} className="flex items-center gap-2 text-emerald-600 font-bold text-sm hover:underline">
+                        <span>📞</span> {selectedLead.customerPhone}
+                      </a>
+                      <a href={`mailto:${selectedLead.customerEmail}`} className="flex items-center gap-2 text-slate-500 text-sm hover:underline">
+                        <Mail size={14} /> {selectedLead.customerEmail}
+                      </a>
+                      <p className="flex items-center gap-2 text-slate-500 text-sm"><MapPin size={14} /> {selectedLead.location}</p>
+                      {selectedLead.requestedDate && (
+                        <p className="flex items-center gap-2 text-slate-500 text-sm"><Calendar size={14} /> {new Date(selectedLead.requestedDate).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                      )}
+                    </div>
+
+                    {/* Notes */}
+                    {selectedLead.notes && (
+                      <div className="bg-slate-50 rounded-2xl p-4">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Booking Details</p>
+                        {renderNotes(selectedLead.notes)}
+                      </div>
+                    )}
+
+                    {/* Status update */}
+                    <div className="space-y-3">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Update Status</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['NEW','CONTACTED','CONFIRMED','COMPLETED','CANCELLED'].map(s => (
+                          <button
+                            key={s}
+                            onClick={() => setEditLeadStatus(s)}
+                            className={cn(
+                              'py-2 rounded-xl text-xs font-bold border transition-all',
+                              editLeadStatus === s
+                                ? s === 'CANCELLED' ? 'bg-red-500 text-white border-red-500'
+                                  : s === 'COMPLETED' ? 'bg-green-500 text-white border-green-500'
+                                  : s === 'CONFIRMED' ? 'bg-emerald-500 text-white border-emerald-500'
+                                  : s === 'CONTACTED' ? 'bg-purple-500 text-white border-purple-500'
+                                  : 'bg-blue-500 text-white border-blue-500'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-slate-300'
+                            )}
+                          >{s}</button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={handleSaveLeadStatus}
+                        disabled={savingLeadStatus || editLeadStatus === selectedLead.status}
+                        className={cn(
+                          'w-full py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
+                          savingLeadStatus || editLeadStatus === selectedLead.status
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-slate-900 text-white hover:bg-slate-800'
+                        )}
+                      >
+                        {savingLeadStatus ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                        Save Status
+                      </button>
+                    </div>
+
+                    {/* Send update to client */}
+                    <div className="space-y-3 border-t border-slate-100 pt-4">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Send Update to Client</p>
+                      <textarea
+                        rows={4}
+                        placeholder="e.g. Hi! We have confirmed your booking for Tuesday. Our team will arrive between 9am–11am. Please ensure the area is accessible."
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none resize-none"
+                        value={clientUpdateMsg}
+                        onChange={e => setClientUpdateMsg(e.target.value)}
+                      />
+                      <button
+                        onClick={handleSendClientUpdate}
+                        disabled={sendingUpdate || !clientUpdateMsg.trim()}
+                        className={cn(
+                          'w-full py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
+                          sendingUpdate || !clientUpdateMsg.trim()
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'
+                        )}
+                      >
+                        {sendingUpdate ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        Send Update to {selectedLead.customerName.split(' ')[0]}
+                      </button>
+                      {clientUpdateStatus === 'success' && (
+                        <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl text-emerald-700 text-sm">
+                          <Check size={16} /> Email sent successfully!
+                        </div>
+                      )}
+                      {clientUpdateStatus.startsWith('error:') && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-700 text-sm">
+                          <AlertCircle size={16} /> {clientUpdateStatus.replace('error:', '')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}

@@ -248,3 +248,68 @@ export async function sendPasswordResetEmail(storeName: string, storeSlug: strin
     return { success: false, error: `Failed to send password reset email: ${errorMessage}` };
   }
 }
+
+/**
+ * Send a booking status update to the customer from the admin dashboard
+ */
+export async function sendClientUpdate(data: {
+  customerName: string;
+  customerEmail: string;
+  storeName: string;
+  storeSlug: string;
+  message: string;
+  status?: string;
+}) {
+  try {
+    const { customerName, customerEmail, storeName, message, status } = data;
+
+    const statusColors: Record<string, string> = {
+      NEW: '#3b82f6',
+      CONTACTED: '#8b5cf6',
+      CONFIRMED: '#10b981',
+      COMPLETED: '#059669',
+      CANCELLED: '#ef4444',
+    };
+    const statusColor = statusColors[status || 'NEW'] || '#10b981';
+    const statusLabel = status || 'UPDATE';
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:${statusColor};color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">&#128364;</div>
+          <h1 style="margin:0;font-size:20px;">Booking Update</h1>
+          <p style="margin:6px 0 0;opacity:0.9;font-size:13px;">${storeName} — Status: ${statusLabel}</p>
+        </div>
+        <div style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #e5e7eb;">
+          <p style="margin:0 0 8px;color:#374151;font-size:14px;">Dear <strong>${customerName}</strong>,</p>
+          <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;">${message}</p>
+        </div>
+        <div style="background:#f0fdf4;border-left:4px solid #10b981;padding:15px;border-radius:5px;margin-bottom:20px;">
+          <p style="margin:0;color:#065f46;font-size:13px;">
+            <strong>Need to reach us?</strong><br>
+            Reply directly to this email or call us on 067 024 0972.
+          </p>
+        </div>
+        <div style="color:#6b7280;font-size:13px;border-top:1px solid #e5e7eb;padding-top:16px;text-align:center;">
+          <p style="margin:0 0 4px;"><strong>${storeName} Team</strong></p>
+          <a href="https://cleandeep.co.za" style="color:#10b981;text-decoration:none;">www.cleandeep.co.za</a>
+        </div>
+      </div>
+    `;
+
+    const result = await resend.emails.send({
+      from: SENDER_ADDRESS,
+      to: customerEmail,
+      subject: `Booking Update from ${storeName}`,
+      html: emailHtml,
+    });
+
+    if (!result.data?.id) {
+      return { success: false, error: 'No message ID returned' };
+    }
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('Error sending client update email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
