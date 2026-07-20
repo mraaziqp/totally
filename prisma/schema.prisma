@@ -22,7 +22,10 @@ model Store {
   missionText            String?
   aboutUsText            String?
   heroImageUrl           String?
+  heroImageEnabled       Boolean   @default(true)
+  heroImageOpacity       Int       @default(10)
   aboutImageUrl          String?
+  customBlocks           Json?
   servicesHeadline       String?   @default("Our Specialised Services")
   servicesDescription    String?
   aboutHeading           String?   @default("Our Journey & Core Values")

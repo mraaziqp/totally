@@ -20,6 +20,7 @@ import {
   Award
 } from 'lucide-react';
 import BookingForm from '../../components/BookingForm';
+import { cn } from '../../lib/utils';
 
 // Custom TikTok Icon SVG path to ensure it always renders without dependency issues
 const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -134,12 +135,13 @@ export default function DeepCleaning() {
 
       {/* Hero Section */}
       <section className="relative pt-10 pb-20 px-4 sm:px-6 overflow-hidden bg-white">
-        {storeData?.heroImageUrl && (
+        {storeData?.heroImageUrl && storeData?.heroImageEnabled !== false && (
           <div className="absolute inset-0 z-0 overflow-hidden">
-             <img 
-               src={storeData.heroImageUrl} 
-               referrerPolicy="no-referrer" 
-               className="w-full h-full object-cover opacity-10 blur-sm scale-105" 
+             <img
+               src={storeData.heroImageUrl}
+               referrerPolicy="no-referrer"
+               className="w-full h-full object-cover blur-sm scale-105"
+               style={{ opacity: (storeData?.heroImageOpacity ?? 10) / 100 }}
                alt="Hero Background"
              />
              <div className="absolute inset-0 bg-gradient-to-b from-white via-white/80 to-slate-50" />
@@ -180,7 +182,7 @@ export default function DeepCleaning() {
                 </div>
                 <div>
                   <p className="text-[9px] uppercase font-bold text-slate-400 tracking-wider">Email Us</p>
-                  <p className="text-sm font-bold text-slate-800 break-all">{storeData?.contactEmail || "info@cleandeep.co.za"}</p>
+                  <p className="text-sm font-bold text-slate-800 break-all">{storeData?.contactEmail || "cleandeep.cpt@gmail.com"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -453,6 +455,38 @@ export default function DeepCleaning() {
         </div>
       </section>
 
+      {/* Custom Content — freeform blocks added via the admin Page Builder */}
+      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
+        <section className="relative py-16 px-4 sm:px-6 bg-white border-t border-slate-100 overflow-hidden">
+          <div className="max-w-7xl mx-auto relative" style={{ minHeight: 560 }}>
+            {(storeData.customBlocks as any[]).map((block) => (
+              <div
+                key={block.id}
+                className="absolute"
+                style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}
+              >
+                {block.type === 'text' ? (
+                  <p
+                    className={cn(
+                      'whitespace-pre-wrap break-words font-medium',
+                      block.fontSize === 'sm' && 'text-sm',
+                      block.fontSize === 'md' && 'text-base',
+                      block.fontSize === 'lg' && 'text-xl',
+                      block.fontSize === 'xl' && 'text-3xl font-bold'
+                    )}
+                    style={{ color: block.color || '#1e293b' }}
+                  >
+                    {block.content}
+                  </p>
+                ) : (
+                  <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6 border-t border-slate-800">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -482,7 +516,7 @@ export default function DeepCleaning() {
           <div>
             <h4 className="text-white font-bold mb-6 uppercase tracking-widest text-xs">Contact Us</h4>
             <ul className="space-y-4 text-sm">
-              <li>{storeData?.contactEmail || "info@cleandeep.co.za"}</li>
+              <li>{storeData?.contactEmail || "cleandeep.cpt@gmail.com"}</li>
               <li>{storeData?.contactPhone || "0670240972"}</li>
               <li>{storeData?.address || "2 Second Street Maitland"}</li>
             </ul>

@@ -28,7 +28,10 @@ import {
   Upload,
   Star,
   Eye,
-  EyeOff
+  EyeOff,
+  LayoutTemplate,
+  Type,
+  Move
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { uploadImage } from '../../lib/uploadImage';
@@ -62,7 +65,7 @@ const renderNotes = (notes: string | null) => {
 
 export default function TenantDashboard() {
   const { storeSlug } = useParams<{ storeSlug: string }>();
-  const [activeTab, setActiveTab] = useState<'leads' | 'cms' | 'services' | 'email' | 'settings'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'cms' | 'services' | 'builder' | 'email' | 'settings'>('leads');
   const [leads, setLeads] = useState<any[]>([]);
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -80,9 +83,19 @@ export default function TenantDashboard() {
   const [testimonialForm, setTestimonialForm] = useState({ authorName: '', authorRole: '', quote: '', rating: 5, avatarUrl: '', isPublished: true });
   const [savingTestimonial, setSavingTestimonial] = useState(false);
   const [uploadingAboutImage, setUploadingAboutImage] = useState(false);
+  const [uploadingHeroImage, setUploadingHeroImage] = useState(false);
   const [uploadingTestimonialAvatar, setUploadingTestimonialAvatar] = useState(false);
   const [uploadingGalleryIdx, setUploadingGalleryIdx] = useState<number | null>(null);
   const [uploadError, setUploadError] = useState('');
+
+  // Page Builder (freeform custom content blocks) state
+  const [customBlocks, setCustomBlocks] = useState<any[]>([]);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
+  const [savingBlocks, setSavingBlocks] = useState(false);
+  const [blocksSaveStatus, setBlocksSaveStatus] = useState('');
+  const canvasRef = React.useRef<HTMLDivElement>(null);
+  const dragRef = React.useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const [testEmail, setTestEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -112,6 +125,8 @@ export default function TenantDashboard() {
     tagline: '',
     missionText: '',
     heroImageUrl: '',
+    heroImageEnabled: true,
+    heroImageOpacity: 10,
     aboutImageUrl: '',
     servicesHeadline: 'Our Specialised Services',
     servicesDescription: '',
@@ -156,6 +171,8 @@ export default function TenantDashboard() {
         tagline: storeInfo.tagline || '',
         missionText: storeInfo.missionText || '',
         heroImageUrl: storeInfo.heroImageUrl || '',
+        heroImageEnabled: storeInfo.heroImageEnabled !== false,
+        heroImageOpacity: storeInfo.heroImageOpacity ?? 10,
         aboutImageUrl: storeInfo.aboutImageUrl || '',
         servicesHeadline: storeInfo.servicesHeadline || 'Our Specialised Services',
         servicesDescription: storeInfo.servicesDescription || '',
@@ -174,6 +191,7 @@ export default function TenantDashboard() {
       });
       setGalleryImages(Array.isArray(storeInfo.galleryImages) ? storeInfo.galleryImages : []);
       setTestimonials(Array.isArray(storeInfo.testimonials) ? storeInfo.testimonials : []);
+      setCustomBlocks(Array.isArray(storeInfo.customBlocks) ? storeInfo.customBlocks : []);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -429,17 +447,20 @@ export default function TenantDashboard() {
     }
   };
 
-  const handleUploadImage = async (file: File, target: 'about' | 'testimonial' | number) => {
+  const handleUploadImage = async (file: File, target: 'about' | 'hero' | 'testimonial' | number) => {
     setUploadError('');
     if (target === 'about') setUploadingAboutImage(true);
+    else if (target === 'hero') setUploadingHeroImage(true);
     else if (target === 'testimonial') setUploadingTestimonialAvatar(true);
     else setUploadingGalleryIdx(target);
 
     try {
-      const folder = target === 'about' ? 'about' : target === 'testimonial' ? 'testimonials' : 'gallery';
+      const folder = target === 'about' ? 'about' : target === 'hero' ? 'hero' : target === 'testimonial' ? 'testimonials' : 'gallery';
       const url = await uploadImage(file, storeSlug!, password, folder);
       if (target === 'about') {
         setCmsForm(prev => ({ ...prev, aboutImageUrl: url }));
+      } else if (target === 'hero') {
+        setCmsForm(prev => ({ ...prev, heroImageUrl: url }));
       } else if (target === 'testimonial') {
         setTestimonialForm(prev => ({ ...prev, avatarUrl: url }));
       } else {
@@ -453,8 +474,100 @@ export default function TenantDashboard() {
       setUploadError((error as Error).message || 'Failed to upload image');
     } finally {
       if (target === 'about') setUploadingAboutImage(false);
+      else if (target === 'hero') setUploadingHeroImage(false);
       else if (target === 'testimonial') setUploadingTestimonialAvatar(false);
       else setUploadingGalleryIdx(null);
+    }
+  };
+
+  // ── Page Builder: freeform custom content blocks ──────────────────────────
+  const addTextBlock = () => {
+    const id = `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const newBlock = { id, type: 'text', content: 'Double-click to edit this text...', x: 35, y: 40, width: 30, fontSize: 'md', color: '#1e293b' };
+    setCustomBlocks(prev => [...prev, newBlock]);
+    setSelectedBlockId(id);
+  };
+
+  const addImageBlock = async (file: File) => {
+    const id = `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setUploadingBlockId(id);
+    setUploadError('');
+    try {
+      const url = await uploadImage(file, storeSlug!, password, 'custom-blocks');
+      const newBlock = { id, type: 'image', content: url, x: 35, y: 40, width: 25 };
+      setCustomBlocks(prev => [...prev, newBlock]);
+      setSelectedBlockId(id);
+    } catch (error) {
+      setUploadError((error as Error).message || 'Failed to upload image');
+    } finally {
+      setUploadingBlockId(null);
+    }
+  };
+
+  const updateBlock = (id: string, patch: Record<string, any>) => {
+    setCustomBlocks(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)));
+  };
+
+  const deleteBlock = (id: string) => {
+    setCustomBlocks(prev => prev.filter(b => b.id !== id));
+    if (selectedBlockId === id) setSelectedBlockId(null);
+  };
+
+  const handleBlockMouseDown = (e: React.MouseEvent, block: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const blockPxX = (block.x / 100) * rect.width;
+    const blockPxY = (block.y / 100) * rect.height;
+    dragRef.current = {
+      id: block.id,
+      offsetX: e.clientX - rect.left - blockPxX,
+      offsetY: e.clientY - rect.top - blockPxY,
+    };
+    setSelectedBlockId(block.id);
+  };
+
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current || !canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      let xPct = ((e.clientX - rect.left - dragRef.current.offsetX) / rect.width) * 100;
+      let yPct = ((e.clientY - rect.top - dragRef.current.offsetY) / rect.height) * 100;
+      xPct = Math.max(0, Math.min(95, xPct));
+      yPct = Math.max(0, Math.min(95, yPct));
+      const id = dragRef.current.id;
+      setCustomBlocks(prev => prev.map(b => (b.id === id ? { ...b, x: xPct, y: yPct } : b)));
+    };
+    const handleMouseUp = () => { dragRef.current = null; };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
+
+  const handlePublishBlocks = async () => {
+    setSavingBlocks(true);
+    setBlocksSaveStatus('');
+    try {
+      const response = await fetch(`/api/stores/${storeSlug}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ customBlocks }),
+      });
+      if (response.ok) {
+        setBlocksSaveStatus('success');
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setBlocksSaveStatus('error:' + (data.error || 'Failed to publish'));
+      }
+    } catch (error) {
+      setBlocksSaveStatus('error:Network error');
+    } finally {
+      setSavingBlocks(false);
     }
   };
 
@@ -759,6 +872,15 @@ export default function TenantDashboard() {
                 <Layout size={16} /> Pages
               </button>
               <button
+                onClick={() => setActiveTab('builder')}
+                className={cn(
+                  "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+                  activeTab === 'builder' ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                )}
+              >
+                <LayoutTemplate size={16} /> Page Builder
+              </button>
+              <button
                 onClick={() => setActiveTab('settings')}
                 className={cn(
                   "px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap",
@@ -994,6 +1116,190 @@ export default function TenantDashboard() {
                     )}
                   </div>
                 </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'builder' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
+                <div>
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2"><LayoutTemplate size={18} className="text-emerald-500" /> Page Builder</h3>
+                  <p className="text-xs text-slate-500 mt-1">Add text and images anywhere in this section, drag them into place, then publish.</p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={addTextBlock}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all"
+                  >
+                    <Type size={16} /> Add Text
+                  </button>
+                  <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer">
+                    <ImageIcon size={16} /> Add Image
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) addImageBlock(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+              {uploadError && <p className="text-xs font-medium text-rose-600 mb-3">{uploadError}</p>}
+
+              <div className={cn("grid gap-6", selectedBlockId ? "grid-cols-1 lg:grid-cols-[1fr_320px]" : "grid-cols-1")}>
+                {/* Canvas */}
+                <div
+                  ref={canvasRef}
+                  onMouseDown={() => setSelectedBlockId(null)}
+                  className="relative w-full rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden select-none"
+                  style={{
+                    height: 560,
+                    backgroundImage: 'linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px)',
+                    backgroundSize: '24px 24px',
+                    backgroundColor: '#fafafa',
+                  }}
+                >
+                  {customBlocks.length === 0 && (
+                    <div className="absolute inset-0 flex items-center justify-center text-center px-8">
+                      <p className="text-sm text-slate-400 font-medium">
+                        <Move size={22} className="mx-auto mb-2 opacity-40" /><br />
+                        This canvas is empty. Click "Add Text" or "Add Image" above, then drag it anywhere in here.
+                      </p>
+                    </div>
+                  )}
+                  {customBlocks.map(block => (
+                    <div
+                      key={block.id}
+                      onMouseDown={e => handleBlockMouseDown(e, block)}
+                      className={cn(
+                        "absolute cursor-move rounded-lg transition-shadow",
+                        selectedBlockId === block.id ? "ring-2 ring-emerald-500 shadow-lg z-10" : "hover:ring-1 hover:ring-slate-300"
+                      )}
+                      style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}
+                    >
+                      {block.type === 'text' ? (
+                        <p
+                          className={cn(
+                            "px-2 py-1 whitespace-pre-wrap break-words font-medium",
+                            block.fontSize === 'sm' && "text-sm",
+                            block.fontSize === 'md' && "text-base",
+                            block.fontSize === 'lg' && "text-xl",
+                            block.fontSize === 'xl' && "text-3xl font-bold"
+                          )}
+                          style={{ color: block.color || '#1e293b' }}
+                        >
+                          {block.content}
+                        </p>
+                      ) : (
+                        <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg pointer-events-none" draggable={false} />
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Selected block properties */}
+                {selectedBlockId && (() => {
+                  const block = customBlocks.find(b => b.id === selectedBlockId);
+                  if (!block) return null;
+                  return (
+                    <div className="bg-slate-50 rounded-2xl p-5 space-y-4 border border-slate-200 h-fit">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-700 uppercase tracking-widest">{block.type === 'text' ? 'Text Block' : 'Image Block'}</p>
+                        <button
+                          type="button"
+                          onClick={() => deleteBlock(block.id)}
+                          className="w-8 h-8 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition-colors flex items-center justify-center"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+
+                      {block.type === 'text' ? (
+                        <>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Text</label>
+                            <textarea
+                              rows={4}
+                              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 outline-none resize-none"
+                              value={block.content}
+                              onChange={e => updateBlock(block.id, { content: e.target.value })}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Size</label>
+                            <div className="grid grid-cols-4 gap-2">
+                              {['sm', 'md', 'lg', 'xl'].map(size => (
+                                <button
+                                  key={size}
+                                  type="button"
+                                  onClick={() => updateBlock(block.id, { fontSize: size })}
+                                  className={cn(
+                                    "py-2 rounded-lg text-xs font-bold border transition-all uppercase",
+                                    block.fontSize === size ? "bg-emerald-500 text-white border-emerald-500" : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                                  )}
+                                >{size}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Color</label>
+                            <input
+                              type="color"
+                              value={block.color || '#1e293b'}
+                              onChange={e => updateBlock(block.id, { color: e.target.value })}
+                              className="w-full h-10 rounded-lg border border-slate-200 cursor-pointer"
+                            />
+                          </div>
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Width</label>
+                          <input
+                            type="range"
+                            min={10}
+                            max={90}
+                            value={block.width}
+                            onChange={e => updateBlock(block.id, { width: Number(e.target.value) })}
+                            className="w-full accent-emerald-500"
+                          />
+                          {uploadingBlockId === block.id && (
+                            <p className="text-xs text-slate-400 flex items-center gap-1"><Loader2 size={12} className="animate-spin" /> Uploading...</p>
+                          )}
+                        </div>
+                      )}
+                      <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-200">Drag the block on the canvas to reposition it.</p>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="flex items-center gap-4 mt-6">
+                <button
+                  type="button"
+                  onClick={handlePublishBlocks}
+                  disabled={savingBlocks}
+                  className={cn(
+                    "flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all",
+                    savingBlocks ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20"
+                  )}
+                >
+                  {savingBlocks ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {savingBlocks ? 'Publishing...' : 'Publish to Live Site'}
+                </button>
+                {blocksSaveStatus === 'success' && (
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-emerald-600"><Check size={16} /> Published!</span>
+                )}
+                {blocksSaveStatus.startsWith('error:') && (
+                  <span className="flex items-center gap-1.5 text-sm font-bold text-rose-600"><AlertCircle size={16} /> {blocksSaveStatus.replace('error:', '')}</span>
+                )}
               </div>
             </div>
           </motion.div>
@@ -1381,23 +1687,68 @@ export default function TenantDashboard() {
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Hero Banner Image (URL)</label>
-                      <div className="flex gap-4">
-                        <div className="flex-1">
-                          <input 
-                            type="text" 
-                            className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 outline-none transition-all"
-                            placeholder="https://images.unsplash.com/..."
-                            value={cmsForm.heroImageUrl}
-                            onChange={e => setCmsForm({...cmsForm, heroImageUrl: e.target.value})}
-                          />
+                    <div className="space-y-3 bg-slate-50 border border-slate-200 rounded-2xl p-5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-loose">Hero Background Image</label>
+                        <button
+                          type="button"
+                          onClick={() => setCmsForm({ ...cmsForm, heroImageEnabled: !cmsForm.heroImageEnabled })}
+                          className={cn(
+                            "relative w-11 h-6 rounded-full transition-colors shrink-0",
+                            cmsForm.heroImageEnabled ? "bg-emerald-500" : "bg-slate-300"
+                          )}
+                          title={cmsForm.heroImageEnabled ? "Background image is ON — click to turn off" : "Background image is OFF — click to turn on"}
+                        >
+                          <span className={cn(
+                            "absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform",
+                            cmsForm.heroImageEnabled && "translate-x-5"
+                          )} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-slate-400 -mt-1">A faint background image behind your hero headline. Turn it off any time without losing the uploaded photo.</p>
+
+                      <div className="flex gap-4 items-start">
+                        <div className="w-20 h-20 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
+                          {cmsForm.heroImageUrl && (
+                            <img src={cmsForm.heroImageUrl} referrerPolicy="no-referrer" alt="Hero background preview" className="w-full h-full object-cover" style={{ opacity: cmsForm.heroImageEnabled ? cmsForm.heroImageOpacity / 100 : 1 }} />
+                          )}
                         </div>
-                        {cmsForm.heroImageUrl && (
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 overflow-hidden shrink-0">
-                            <img src={cmsForm.heroImageUrl} referrerPolicy="no-referrer" alt="Preview" className="w-full h-full object-cover" />
+                        <div className="flex-1 space-y-3">
+                          <label className={cn(
+                            "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all",
+                            uploadingHeroImage ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-900 text-white hover:bg-slate-800"
+                          )}>
+                            {uploadingHeroImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                            {uploadingHeroImage ? 'Uploading...' : 'Upload Photo'}
+                            <input
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              disabled={uploadingHeroImage}
+                              onChange={e => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadImage(file, 'hero');
+                                e.target.value = '';
+                              }}
+                            />
+                          </label>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Opacity / Fade</label>
+                              <span className="text-xs font-bold text-slate-600">{cmsForm.heroImageOpacity}%</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={cmsForm.heroImageOpacity}
+                              disabled={!cmsForm.heroImageEnabled}
+                              onChange={e => setCmsForm({ ...cmsForm, heroImageOpacity: Number(e.target.value) })}
+                              className="w-full accent-emerald-500 disabled:opacity-40"
+                            />
                           </div>
-                        )}
+                        </div>
                       </div>
                     </div>
 

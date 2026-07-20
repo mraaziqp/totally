@@ -554,7 +554,10 @@ async function startServer() {
         missionText,
         aboutUsText,
         heroImageUrl,
+        heroImageEnabled,
+        heroImageOpacity,
         aboutImageUrl,
+        customBlocks,
         servicesHeadline,
         servicesDescription,
         aboutHeading,
@@ -583,7 +586,16 @@ async function startServer() {
       if (missionText !== undefined) updateData.missionText = missionText;
       if (aboutUsText !== undefined) updateData.aboutUsText = aboutUsText;
       if (heroImageUrl !== undefined) updateData.heroImageUrl = heroImageUrl;
+      if (heroImageEnabled !== undefined) updateData.heroImageEnabled = Boolean(heroImageEnabled);
+      if (heroImageOpacity !== undefined) {
+        const opacity = Number(heroImageOpacity);
+        if (!Number.isFinite(opacity)) {
+          return res.status(400).json({ error: 'heroImageOpacity must be a number' });
+        }
+        updateData.heroImageOpacity = Math.min(100, Math.max(0, Math.round(opacity)));
+      }
       if (aboutImageUrl !== undefined) updateData.aboutImageUrl = aboutImageUrl;
+      if (customBlocks !== undefined) updateData.customBlocks = customBlocks;
       if (servicesHeadline !== undefined) updateData.servicesHeadline = servicesHeadline;
       if (servicesDescription !== undefined) updateData.servicesDescription = servicesDescription;
       if (aboutHeading !== undefined) updateData.aboutHeading = aboutHeading;
