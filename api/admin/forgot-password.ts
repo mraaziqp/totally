@@ -21,9 +21,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Unit not found' });
     }
 
-    if (!store.contactEmail) {
-      return res.status(400).json({ error: 'This unit does not have a configured contact email. Please contact the system administrator.' });
-    }
+    // Password resets are an admin-facing (not customer-facing) notification,
+    // so they go to the business owner's monitored inbox, not the store's
+    // public contact address.
+    const notifyEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
 
     // Generate a secure 8-character temporary password
     const tempPassword = crypto.randomBytes(4).toString('hex');
@@ -38,7 +39,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const emailResult = await sendPasswordResetEmail(
       store.name,
       store.slug,
-      store.contactEmail,
+      notifyEmail,
       tempPassword
     );
 
@@ -47,15 +48,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
     }
 
-    // Mask the email address in the response for security, e.g., d***g@totally.co.za
-    const email = store.contactEmail;
-    const [localPart, domain] = email.split('@');
-    const maskedLocal = localPart.length > 2 
-      ? `${localPart[0]}***${localPart[localPart.length - 1]}` 
+    // Mask the email address in the response for security, e.g., d***g@gmail.com
+    const [localPart, domain] = notifyEmail.split('@');
+    const maskedLocal = localPart.length > 2
+      ? `${localPart[0]}***${localPart[localPart.length - 1]}`
       : `${localPart[0]}***`;
     const maskedEmail = `${maskedLocal}@${domain}`;
 
-    console.log(`Password reset email sent to ${store.contactEmail} (${maskedEmail}) for ${storeSlug}`);
+    console.log(`Password reset email sent to ${notifyEmail} (${maskedEmail}) for ${storeSlug}`);
     return res.json({ 
       success: true, 
       message: `A temporary password has been sent to the registered email address: ${maskedEmail}` 
