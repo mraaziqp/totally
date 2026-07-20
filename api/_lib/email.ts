@@ -26,34 +26,35 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     const { customerName, customerEmail, location, requestedDate, storeName, notes } = data;
 
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #10b981; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h1 style="margin: 0;">✓ Booking Received!</h1>
-          <p style="margin: 5px 0 0 0; opacity: 0.9;">Your service request has been submitted</p>
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:#10b981;color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:36px;margin-bottom:8px;">✓</div>
+          <h1 style="margin:0;font-size:22px;">Booking Received!</h1>
+          <p style="margin:6px 0 0;opacity:0.9;font-size:14px;">Your service request has been submitted</p>
         </div>
 
-        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h2 style="color: #1f2937; margin-top: 0;">Booking Details</h2>
-          <p style="margin: 10px 0;"><strong>Name:</strong> ${customerName}</p>
-          <p style="margin: 10px 0;"><strong>Service Provider:</strong> ${storeName}</p>
-          <p style="margin: 10px 0;"><strong>Location:</strong> ${location}</p>
-          ${requestedDate ? `<p style="margin: 10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString()}</p>` : ''}
-          <p style="margin: 10px 0;"><strong>Contact:</strong> ${customerEmail}</p>
-          ${notes ? `<p style="margin: 10px 0;"><strong>Details:</strong> ${notes}</p>` : ''}
+        <div style="background:#f3f4f6;padding:20px;border-radius:10px;margin-bottom:20px;">
+          <h2 style="color:#1f2937;margin-top:0;">Booking Details</h2>
+          <p style="margin:10px 0;"><strong>Name:</strong> ${customerName}</p>
+          <p style="margin:10px 0;"><strong>Service Provider:</strong> ${storeName}</p>
+          <p style="margin:10px 0;"><strong>Area:</strong> ${location}</p>
+          ${requestedDate ? `<p style="margin:10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
+          <p style="margin:10px 0;"><strong>Contact:</strong> ${customerEmail}</p>
+          ${notes ? `<p style="margin:10px 0;"><strong>Details:</strong> ${notes.replace(/(https?:\/\/[^\s]+)/g, '').trim()}</p>` : ''}
         </div>
 
-        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 20px; border-radius: 5px;">
-          <p style="margin: 0; color: #92400e;">
+        <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px;margin-bottom:20px;border-radius:5px;">
+          <p style="margin:0;color:#92400e;">
             <strong>What happens next?</strong><br>
             Our team will review your request and contact you within 24 hours to confirm your appointment and discuss any specific requirements.
           </p>
         </div>
 
-        <div style="color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+        <div style="color:#6b7280;font-size:14px;border-top:1px solid #e5e7eb;padding-top:20px;">
           <p>Thank you for choosing CleanDeep. We look forward to serving you!</p>
-          <p style="margin-bottom: 0;">
+          <p style="margin-bottom:0;">
             <strong>CleanDeep Team</strong><br>
-            <a href="https://cleandeep.co.za" style="color: #10b981; text-decoration: none;">www.cleandeep.co.za</a>
+            <a href="https://cleandeep.co.za" style="color:#10b981;text-decoration:none;">www.cleandeep.co.za</a>
           </p>
         </div>
       </div>
@@ -62,7 +63,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: customerEmail,
-      subject: `✓ Booking Received - ${storeName}`,
+      subject: `Booking Received - ${storeName}`,
       html: emailHtml,
     });
 
@@ -81,31 +82,50 @@ export async function sendAdminNotification(data: BookingEmailData) {
     const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
     const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
 
+    // Split image URLs out of notes for thumbnail rendering
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const imageUrls: string[] = [];
+    const cleanNotes = (notes || '').replace(urlRegex, (url) => {
+      imageUrls.push(url);
+      return '';
+    }).trim();
+
+    const thumbs = imageUrls
+      .map(url => `<a href="${url}" target="_blank"><img src="${url}" width="90" height="90" style="object-fit:cover;border-radius:6px;border:2px solid #10b981;margin:4px;" /></a>`)
+      .join('');
+
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #1f2937; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h1 style="margin: 0;">📩 New Booking Request</h1>
-          <p style="margin: 5px 0 0 0; opacity: 0.9;">${storeName}</p>
+      <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:20px;background:#f8fafc;">
+        <div style="background:linear-gradient(135deg,#1f2937,#374151);color:white;padding:24px;border-radius:12px;margin-bottom:16px;text-align:center;">
+          <div style="font-size:36px;margin-bottom:6px;">📩</div>
+          <h1 style="margin:0;font-size:20px;">New Booking Request</h1>
+          <p style="margin:6px 0 0;opacity:0.8;font-size:13px;">${storeName}</p>
         </div>
 
-        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-          <h2 style="color: #1f2937; margin-top: 0;">Customer Details</h2>
-          <p style="margin: 10px 0;"><strong>Name:</strong> ${customerName}</p>
-          <p style="margin: 10px 0;"><strong>Email:</strong> <a href="mailto:${customerEmail}" style="color: #10b981;">${customerEmail}</a></p>
-          <p style="margin: 10px 0;"><strong>Phone:</strong> <a href="tel:${customerPhone}" style="color: #10b981;">${customerPhone}</a></p>
-          <p style="margin: 10px 0;"><strong>Location:</strong> ${location}</p>
-          ${requestedDate ? `<p style="margin: 10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString()}</p>` : ''}
-          ${notes ? `<p style="margin: 10px 0;"><strong>Details:</strong> ${notes}</p>` : ''}
+        <div style="background:white;padding:20px;border-radius:12px;margin-bottom:12px;border:1px solid #e5e7eb;">
+          <h2 style="color:#1f2937;margin-top:0;font-size:15px;border-bottom:2px solid #10b981;padding-bottom:8px;">Customer Details</h2>
+          <p style="margin:8px 0;font-size:14px;"><strong>Name:</strong> ${customerName}</p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Phone:</strong> <a href="tel:${customerPhone}" style="color:#10b981;font-weight:bold;font-size:16px;">${customerPhone}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Email:</strong> <a href="mailto:${customerEmail}" style="color:#10b981;">${customerEmail}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Area:</strong> ${location}</p>
+          ${requestedDate ? `<p style="margin:8px 0;font-size:14px;"><strong>Preferred Date:</strong> <span style="color:#10b981;font-weight:bold;">${new Date(requestedDate).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span></p>` : ''}
         </div>
 
-        <div style="text-align: center; margin-bottom: 20px;">
-          <a href="https://cleandeep.co.za/admin/${data.storeSlug}" style="background-color: #10b981; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block;">
-            View in Dashboard
+        ${cleanNotes || imageUrls.length > 0 ? `
+        <div style="background:white;padding:20px;border-radius:12px;margin-bottom:12px;border:1px solid #e5e7eb;">
+          <h2 style="color:#1f2937;margin-top:0;font-size:15px;border-bottom:2px solid #10b981;padding-bottom:8px;">Booking Details</h2>
+          ${cleanNotes ? `<p style="color:#374151;line-height:1.7;white-space:pre-wrap;font-size:14px;">${cleanNotes}</p>` : ''}
+          ${imageUrls.length > 0 ? `<p style="margin:8px 0;font-size:13px;"><strong>Customer Photos:</strong></p><div>${thumbs}</div>` : ''}
+        </div>` : ''}
+
+        <div style="text-align:center;margin:20px 0;">
+          <a href="https://cleandeep.co.za/admin/${data.storeSlug}" style="background:#10b981;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold;font-size:15px;">
+            View in Admin Dashboard
           </a>
         </div>
 
-        <p style="color: #6b7280; font-size: 12px;">
-          This is an automated notification. Log in to your admin dashboard to manage this booking.
+        <p style="color:#9ca3af;font-size:12px;text-align:center;">
+          Reply to this email to contact the customer directly
         </p>
       </div>
     `;
@@ -113,7 +133,8 @@ export async function sendAdminNotification(data: BookingEmailData) {
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: adminEmail,
-      subject: `New Booking Request - ${storeName}`,
+      replyTo: customerEmail,
+      subject: `New Booking: ${customerName} - ${location}`,
       html: emailHtml,
     });
 
@@ -129,7 +150,6 @@ export async function sendAdminNotification(data: BookingEmailData) {
  */
 export async function sendTestEmail(toEmail: string) {
   try {
-    // Validate email format
     if (!toEmail || !toEmail.includes('@')) {
       return { success: false, error: 'Invalid email address' };
     }
@@ -137,16 +157,16 @@ export async function sendTestEmail(toEmail: string) {
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: toEmail,
-      subject: 'Test Email - TotalLŸ',
+      subject: 'Test Email - CleanDeep',
       html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: #10b981; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-            <h1 style="margin: 0;">✓ Test Email Successful</h1>
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+          <div style="background:#10b981;color:white;padding:20px;border-radius:10px;margin-bottom:20px;">
+            <h1 style="margin:0;">Test Email Successful</h1>
           </div>
-          <p style="color: #333; line-height: 1.6;">
-            This is a test email from TotalLŸ. If you received this, Resend is configured correctly!
+          <p style="color:#333;line-height:1.6;">
+            This is a test email from CleanDeep. If you received this, Resend is configured correctly!
           </p>
-          <p style="color: #666; font-size: 12px; margin-top: 20px;">
+          <p style="color:#666;font-size:12px;margin-top:20px;">
             <strong>Email Configuration:</strong><br>
             Service: Resend<br>
             From: ${SENDER_ADDRESS}<br>
@@ -175,37 +195,36 @@ export async function sendTestEmail(toEmail: string) {
 export async function sendPasswordResetEmail(storeName: string, storeSlug: string, toEmail: string, temporaryPassword: string) {
   try {
     const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background-color: #0f172a; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 24px;">🔑 Password Reset Request</h1>
-          <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 14px;">TotalLŸ Command Center</p>
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:#0f172a;color:white;padding:20px;border-radius:10px;margin-bottom:20px;text-align:center;">
+          <h1 style="margin:0;font-size:24px;">Password Reset Request</h1>
+          <p style="margin:5px 0 0;opacity:0.9;font-size:14px;">CleanDeep Admin</p>
         </div>
 
-        <div style="background-color: #f8fafc; padding: 25px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
-          <p style="margin-top: 0; color: #334155;">Hello,</p>
-          <p style="color: #334155; line-height: 1.6;">
+        <div style="background:#f8fafc;padding:25px;border-radius:10px;margin-bottom:20px;border:1px solid #e2e8f0;">
+          <p style="margin-top:0;color:#334155;">Hello,</p>
+          <p style="color:#334155;line-height:1.6;">
             A password reset was requested for the admin dashboard of <strong>${storeName}</strong>.
           </p>
-          <p style="color: #334155; line-height: 1.6;">
+          <p style="color:#334155;line-height:1.6;">
             We have generated a secure temporary password for your account:
           </p>
-          <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0; border: 1px dashed #cbd5e1;">
-            <code style="font-family: monospace; font-size: 20px; font-weight: bold; color: #0f172a; letter-spacing: 2px;">${temporaryPassword}</code>
+          <div style="background:#f1f5f9;padding:15px;border-radius:8px;text-align:center;margin:20px 0;border:1px dashed #cbd5e1;">
+            <code style="font-family:monospace;font-size:20px;font-weight:bold;color:#0f172a;letter-spacing:2px;">${temporaryPassword}</code>
           </div>
-          <p style="color: #334155; line-height: 1.6;">
+          <p style="color:#334155;line-height:1.6;">
             Please use this temporary password to log in. Once logged in, go to the <strong>Settings</strong> tab to set a new password of your choice.
           </p>
         </div>
 
-        <div style="text-align: center; margin-bottom: 25px;">
-          <a href="https://cleandeep.co.za/admin/${storeSlug}" style="background-color: #10b981; color: white; padding: 12px 25px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
+        <div style="text-align:center;margin-bottom:25px;">
+          <a href="https://cleandeep.co.za/admin/${storeSlug}" style="background:#10b981;color:white;padding:12px 25px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold;">
             Access Admin Dashboard
           </a>
         </div>
 
-        <div style="color: #94a3b8; font-size: 12px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center;">
-          <p style="margin: 0 0 5px 0;">This email was sent from an automated system. Please do not reply to it.</p>
-          <p style="margin: 0;">TotalLŸ &copy; 2026</p>
+        <div style="color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:20px;text-align:center;">
+          <p style="margin:0;">CleanDeep &copy; 2026</p>
         </div>
       </div>
     `;
@@ -213,7 +232,7 @@ export async function sendPasswordResetEmail(storeName: string, storeSlug: strin
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: toEmail,
-      subject: `🔑 Password Reset - ${storeName}`,
+      subject: `Password Reset - ${storeName}`,
       html: emailHtml,
     });
 
@@ -229,4 +248,3 @@ export async function sendPasswordResetEmail(storeName: string, storeSlug: strin
     return { success: false, error: `Failed to send password reset email: ${errorMessage}` };
   }
 }
-

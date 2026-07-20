@@ -13,8 +13,8 @@ function isValidPhone(phone: string): boolean {
   return phoneRegex.test(phone.replace(/\s/g, ''));
 }
 
-function sanitizeString(input: string): string {
-  return input.trim().slice(0, 500);
+function sanitizeString(input: string, maxLen = 5000): string {
+  return input.trim().slice(0, maxLen);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -72,9 +72,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (isNaN(dateObj.getTime())) {
         return res.status(400).json({ error: 'Invalid date format' });
       }
-      // Ensure date is not in the past
-      if (dateObj < new Date()) {
-        return res.status(400).json({ error: 'Requested date must be in the future' });
+      // Ensure date is not strictly before today (allow today itself)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (dateObj < today) {
+        return res.status(400).json({ error: 'Requested date must be today or in the future' });
       }
       parsedDate = dateObj;
     }
@@ -96,8 +98,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
     });
 
-    // Send confirmation email to customer (non-blocking)
-    sendBookingConfirmation({
+    // Send both emails and wait for them — Vercel serverless will terminate
+    // the function the moment we return, so fire-and-forget (non-blocking) drops
+    // emails when the function exits before Resend responds.
+    const emailPayload = {
       customerName: sanitizedName,
       customerEmail: customerEmail.toLowerCase(),
       customerPhone: customerPhone.trim(),
@@ -106,23 +110,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       storeSlug: sanitizedSlug,
       storeName: store.name,
       notes: sanitizedNotes,
-    }).catch(err => {
-      console.error('Failed to send booking confirmation email:', err);
-    });
+    };
 
-    // Send admin notification (non-blocking)
-    sendAdminNotification({
-      customerName: sanitizedName,
-      customerEmail: customerEmail.toLowerCase(),
-      customerPhone: customerPhone.trim(),
-      location: sanitizedLocation,
-      requestedDate: requestedDate,
-      storeSlug: sanitizedSlug,
-      storeName: store.name,
-      notes: sanitizedNotes,
-    }).catch(err => {
-      console.error('Failed to send admin notification email:', err);
-    });
+    const [confResult, adminResult] = await Promise.allSettled([
+      sendBookingConfirmation(emailPayload),
+      sendAdminNotification(emailPayload),
+    ]);
+
+    if (confResult.status === 'rejected') {
+      console.error('Booking confirmation email failed:', confResult.reason);
+    } else {
+      console.log('Booking confirmation email sent:', confResult.value);
+    }
+    if (adminResult.status === 'rejected') {
+      console.error('Admin notification email failed:', adminResult.reason);
+    } else {
+      console.log('Admin notification email sent:', adminResult.value);
+    }
 
     return res.status(201).json({
       success: true,
