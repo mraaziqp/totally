@@ -4,7 +4,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // Email sender configuration from environment variables
 const SENDER_EMAIL = process.env.SENDER_EMAIL || 'info@cleandeep.co.za';
-const SENDER_NAME = process.env.SENDER_NAME || 'TotalLŸ';
+const SENDER_NAME = process.env.SENDER_NAME || 'CleanDeep';
 const SENDER_ADDRESS = `${SENDER_NAME} <${SENDER_EMAIL}>`;
 
 export interface BookingEmailData {
@@ -50,9 +50,9 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
         </div>
 
         <div style="color: #6b7280; font-size: 14px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
-          <p>Thank you for choosing TotalLŸ. We look forward to serving you!</p>
+          <p>Thank you for choosing CleanDeep. We look forward to serving you!</p>
           <p style="margin-bottom: 0;">
-            <strong>TotalLŸ Team</strong><br>
+            <strong>CleanDeep Team</strong><br>
             <a href="https://cleandeep.co.za" style="color: #10b981; text-decoration: none;">www.cleandeep.co.za</a>
           </p>
         </div>
@@ -79,7 +79,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
 export async function sendAdminNotification(data: BookingEmailData) {
   try {
     const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
-    const adminEmail = 'admin@cleandeep.co.za';
+    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.za@gmail.com';
 
     const emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">

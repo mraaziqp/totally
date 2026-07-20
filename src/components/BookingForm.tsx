@@ -8,36 +8,38 @@ interface BookingFormProps {
   storeSlug: string;
 }
 
-// REST-based client uploader for Supabase storage (no package dependency)
-const uploadImageToSupabase = async (file: File, storeSlug: string): Promise<string> => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://hhsoppbizeobeayngprn.supabase.co';
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+// Server-proxied image uploader — avoids Supabase RLS by going through our API
+// which uses the service role key server-side.
+async function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1] || '');
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
 
-  if (!supabaseAnonKey) {
-    throw new Error('Supabase configuration missing');
+const uploadImageToServer = async (file: File, storeSlug: string): Promise<string> => {
+  if (file.size > 3 * 1024 * 1024) {
+    throw new Error('Image is too large. Please keep uploads under 3MB.');
   }
 
-  // Clean filename to prevent spaces/special characters
-  const cleanName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-  const path = `leads/${storeSlug}/${Date.now()}_${cleanName}`;
-  const url = `${supabaseUrl}/storage/v1/object/media/${path}`;
+  const dataBase64 = await fileToBase64(file);
 
-  const response = await fetch(url, {
+  const response = await fetch('/api/upload-lead-image', {
     method: 'POST',
-    headers: {
-      'apikey': supabaseAnonKey,
-      'Authorization': `Bearer ${supabaseAnonKey}`,
-      'Content-Type': file.type,
-    },
-    body: file,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ storeSlug, fileType: file.type, dataBase64 }),
   });
 
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Upload failed');
+    throw new Error(data.error || 'Upload failed');
   }
-
-  return `${supabaseUrl}/storage/v1/object/public/media/${path}`;
+  return data.url as string;
 };
 
 export default function BookingForm({ className, storeSlug }: BookingFormProps) {
@@ -289,7 +291,7 @@ export default function BookingForm({ className, storeSlug }: BookingFormProps) 
                       const urls: string[] = [];
                       for (const file of filesArray) {
                         try {
-                          const url = await uploadImageToSupabase(file, storeSlug);
+                          const url = await uploadImageToServer(file, storeSlug);
                           urls.push(url);
                         } catch (err) {
                           console.error("Failed to upload image:", err);
