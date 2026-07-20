@@ -7,6 +7,10 @@ const SENDER_EMAIL = process.env.SENDER_EMAIL || 'info@cleandeep.co.za';
 const SENDER_NAME = process.env.SENDER_NAME || 'CleanDeep';
 const SENDER_ADDRESS = `${SENDER_NAME} <${SENDER_EMAIL}>`;
 
+// Business inbox that gets bcc'd on every customer-facing email, so the
+// business can see exactly what the customer received.
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
+
 export interface BookingEmailData {
   customerName: string;
   customerEmail: string;
@@ -63,11 +67,17 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: customerEmail,
+      bcc: ADMIN_NOTIFY_EMAIL,
       subject: `Booking Received - ${storeName}`,
       html: emailHtml,
     });
 
-    return { success: true, messageId: result.data?.id };
+    if (!result.data?.id) {
+      console.error('Resend rejected booking confirmation email:', result.error);
+      return { success: false, error: result.error?.message || 'No message ID returned from email service' };
+    }
+
+    return { success: true, messageId: result.data.id };
   } catch (error) {
     console.error('Error sending booking confirmation email:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -80,7 +90,7 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
 export async function sendAdminNotification(data: BookingEmailData) {
   try {
     const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
-    const adminEmail = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
+    const adminEmail = ADMIN_NOTIFY_EMAIL;
 
     // Split image URLs out of notes for thumbnail rendering
     const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -138,7 +148,12 @@ export async function sendAdminNotification(data: BookingEmailData) {
       html: emailHtml,
     });
 
-    return { success: true, messageId: result.data?.id };
+    if (!result.data?.id) {
+      console.error('Resend rejected admin notification email:', result.error);
+      return { success: false, error: result.error?.message || 'No message ID returned from email service' };
+    }
+
+    return { success: true, messageId: result.data.id };
   } catch (error) {
     console.error('Error sending admin notification:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
@@ -300,6 +315,7 @@ export async function sendClientUpdate(data: {
     const result = await resend.emails.send({
       from: SENDER_ADDRESS,
       to: customerEmail,
+      bcc: ADMIN_NOTIFY_EMAIL,
       subject: `Booking Update from ${storeName}`,
       html: emailHtml,
     });
