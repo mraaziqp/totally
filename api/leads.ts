@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from './_lib/prisma';
-import { sendBookingConfirmation, sendAdminNotification } from './_lib/email';
+import { prisma } from './_lib/prisma.js';
+import { sendBookingConfirmation, sendAdminNotification } from './_lib/email.js';
 
 // Validation helpers
 function isValidEmail(email: string): boolean {

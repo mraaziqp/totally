@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../_lib/prisma';
-import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
-import { getSupabaseAdmin, MEDIA_BUCKET } from '../_lib/supabase';
+import { prisma } from '../_lib/prisma.js';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth.js';
+import { getSupabaseAdmin, MEDIA_BUCKET } from '../_lib/supabase.js';
 
 const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',

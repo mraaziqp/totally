@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../_lib/prisma';
-import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
+import { prisma } from '../_lib/prisma.js';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth.js';
 
 async function authorize(storeSlug: string, providedPassword?: string) {
   const store = await prisma.store.findUnique({ where: { slug: storeSlug } });

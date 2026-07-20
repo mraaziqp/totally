@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../_lib/prisma';
-import { hashPassword } from '../_lib/auth';
-import { sendPasswordResetEmail } from '../_lib/email';
+import { prisma } from '../_lib/prisma.js';
+import { hashPassword } from '../_lib/auth.js';
+import { sendPasswordResetEmail } from '../_lib/email.js';
 import crypto from 'crypto';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

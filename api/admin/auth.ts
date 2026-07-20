@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { prisma } from '../_lib/prisma';
-import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth';
+import { prisma } from '../_lib/prisma.js';
+import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth.js';
 
 // Simple in-memory rate limiting (resets per deployment)
 const loginAttempts = new Map<string, { count: number; resetTime: number }>();
