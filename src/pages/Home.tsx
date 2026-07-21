@@ -20,6 +20,7 @@ import {
   Award
 } from 'lucide-react';
 import BookingForm from '../components/BookingForm';
+import { cn } from '../lib/utils';
 
 // Custom TikTok Icon SVG path to ensure it always renders without dependency issues
 const TikTokIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -537,6 +538,38 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Custom Content — freeform blocks added via the admin Page Builder */}
+      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
+        <section className="relative py-16 px-4 sm:px-6 bg-white border-t border-slate-100 overflow-hidden">
+          <div className="max-w-7xl mx-auto relative" style={{ minHeight: 560 }}>
+            {(storeData.customBlocks as any[]).map((block) => (
+              <div
+                key={block.id}
+                className="absolute"
+                style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}
+              >
+                {block.type === 'text' ? (
+                  <p
+                    className={cn(
+                      'whitespace-pre-wrap break-words font-medium',
+                      block.fontSize === 'sm' && 'text-sm',
+                      block.fontSize === 'md' && 'text-base',
+                      block.fontSize === 'lg' && 'text-xl',
+                      block.fontSize === 'xl' && 'text-3xl font-bold'
+                    )}
+                    style={{ color: block.color || '#1e293b' }}
+                  >
+                    {block.content}
+                  </p>
+                ) : (
+                  <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6 border-t border-slate-800">
