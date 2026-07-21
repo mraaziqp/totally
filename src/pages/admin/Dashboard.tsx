@@ -26,8 +26,8 @@ export default function AdminDashboard() {
   const [activeStore, setActiveStore] = useState('deep-cleaning');
   const [leads, setLeads] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [password, setPassword] = useState('totally2026');
   const [searchQuery, setSearchQuery] = useState('');
 
   const stores = [

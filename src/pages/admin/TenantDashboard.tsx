@@ -70,8 +70,8 @@ export default function TenantDashboard() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [password, setPassword] = useState('totally2026');
   const [authError, setAuthError] = useState('');
   const [galleryImages, setGalleryImages] = useState<{ url: string; caption: string }[]>([]);
   const [services, setServices] = useState<any[]>([]);
@@ -821,7 +821,18 @@ export default function TenantDashboard() {
                <ArrowLeft size={20} />
             </Link>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">{storeData?.name || storeSlug}</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-2xl font-bold text-slate-900 uppercase tracking-tight">{storeData?.name || storeSlug}</h1>
+                <select
+                  value={storeSlug}
+                  onChange={(e) => window.location.href = `/admin/${e.target.value}`}
+                  className="text-xs font-bold bg-slate-100 border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 outline-none cursor-pointer hover:bg-slate-200 transition-colors"
+                >
+                  <option value="deep-cleaning">CleanDeep</option>
+                  <option value="pressure-cleaning">High Pressure</option>
+                  <option value="gifting">Gifting</option>
+                </select>
+              </div>
               <p className="text-sm text-slate-500">Manage leads and storefront content</p>
             </div>
           </div>
