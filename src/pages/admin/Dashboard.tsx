@@ -60,9 +60,9 @@ export default function AdminDashboard() {
   }, [activeStore, isAuthenticated]);
 
   const stats = [
-    { label: 'New Leads (Total)', value: leads.length.toString(), change: 'Live', icon: <Users size={20} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Active Jobs', value: leads.filter(l => l.status === 'NEW').length.toString(), change: 'Pending', icon: <Briefcase size={20} />, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { label: 'Total Revenue (Est)', value: 'Coming Soon', change: 'Tracking TBD', icon: <TrendingUp size={20} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+    { label: 'Total Requests', value: leads.length.toString(), change: 'Live DB', icon: <Users size={20} />, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'New Requests', value: leads.filter(l => l.status === 'NEW').length.toString(), change: 'Pending Action', icon: <Briefcase size={20} />, color: 'text-teal-600', bg: 'bg-teal-50' },
+    { label: 'Confirmed / Completed', value: leads.filter(l => l.status === 'CONFIRMED' || l.status === 'COMPLETED').length.toString(), change: 'Confirmed', icon: <TrendingUp size={20} />, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   ];
 
   const getStatusStyles = (status: string) => {
@@ -303,7 +303,8 @@ export default function AdminDashboard() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: idx * 0.05 }}
-                        className="hover:bg-slate-50/50 transition-colors group cursor-pointer"
+                        onClick={() => window.location.href = `/admin/${activeStore}`}
+                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
                       >
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">

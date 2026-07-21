@@ -122,12 +122,13 @@ export default function Home() {
 
       {/* Hero Section */}
       <section className="relative pt-10 pb-20 px-4 sm:px-6 overflow-hidden bg-white">
-        {storeData?.heroImageUrl && (
+        {storeData?.heroImageUrl && storeData?.heroImageEnabled !== false && (
           <div className="absolute inset-0 z-0 overflow-hidden">
              <img 
                src={storeData.heroImageUrl} 
                referrerPolicy="no-referrer" 
-               className="w-full h-full object-cover opacity-10 blur-sm scale-105" 
+               className="w-full h-full object-cover blur-sm scale-105" 
+               style={{ opacity: (storeData?.heroImageOpacity ?? 10) / 100 }}
                alt="Hero Background"
              />
              <div className="absolute inset-0 bg-gradient-to-b from-white via-white/80 to-slate-50" />
