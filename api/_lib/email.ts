@@ -10,6 +10,7 @@ const SENDER_ADDRESS = `${SENDER_NAME} <${SENDER_EMAIL}>`;
 // Business inbox that gets bcc'd on every customer-facing email, so the
 // business can see exactly what the customer received.
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
+const APP_URL = process.env.APP_URL || 'https://cleandeep.co.za';
 
 // User-supplied values (names, notes, messages) are interpolated directly
 // into HTML emails — escape them so a name/note containing < or & can't
@@ -352,6 +353,189 @@ export async function sendClientUpdate(data: {
     return { success: true, messageId: result.data.id };
   } catch (error) {
     console.error('Error sending client update email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Send a quote to the customer with a link to accept or decline it.
+ */
+export async function sendQuoteEmail(data: {
+  customerName: string;
+  customerEmail: string;
+  storeName: string;
+  amount: number;
+  message?: string;
+  token: string;
+}) {
+  try {
+    const { customerName, customerEmail, storeName, amount, message, token } = data;
+    const safeName = escapeHtml(customerName);
+    const safeStoreName = escapeHtml(storeName);
+    const safeMessage = message ? escapeHtml(message) : '';
+    const quoteUrl = `${APP_URL}/quote/${token}`;
+    const formattedAmount = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:#10b981;color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">📋</div>
+          <h1 style="margin:0;font-size:22px;">Your Quote is Ready</h1>
+          <p style="margin:6px 0 0;opacity:0.9;font-size:14px;">${safeStoreName}</p>
+        </div>
+        <div style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #e5e7eb;">
+          <p style="margin:0 0 12px;color:#374151;font-size:14px;">Dear <strong>${safeName}</strong>,</p>
+          <p style="margin:0 0 16px;color:#374151;font-size:14px;line-height:1.6;">Thank you for your interest. Here is your personalised quote:</p>
+          <div style="background:white;border:2px solid #10b981;border-radius:10px;padding:20px;text-align:center;margin-bottom:16px;">
+            <p style="margin:0;color:#6b7280;font-size:12px;text-transform:uppercase;letter-spacing:1px;">Quoted Amount</p>
+            <p style="margin:6px 0 0;color:#059669;font-size:32px;font-weight:bold;">${formattedAmount}</p>
+          </div>
+          ${safeMessage ? `<p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;">${safeMessage}</p>` : ''}
+        </div>
+        <div style="text-align:center;margin-bottom:20px;">
+          <a href="${quoteUrl}" style="background:#10b981;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold;font-size:15px;">
+            View &amp; Respond to Quote
+          </a>
+        </div>
+        <div style="color:#6b7280;font-size:13px;border-top:1px solid #e5e7eb;padding-top:16px;text-align:center;">
+          <p style="margin:0 0 4px;"><strong>${safeStoreName} Team</strong></p>
+          <a href="${APP_URL}" style="color:#10b981;text-decoration:none;">${APP_URL.replace(/^https?:\/\//, '')}</a>
+        </div>
+      </div>
+    `;
+
+    const result = await resend.emails.send({
+      from: SENDER_ADDRESS,
+      to: customerEmail,
+      bcc: ADMIN_NOTIFY_EMAIL,
+      subject: `Your Quote from ${storeName}`,
+      html: emailHtml,
+    });
+
+    if (!result.data?.id) {
+      console.error('Resend rejected quote email:', result.error);
+      return { success: false, error: result.error?.message || 'No message ID returned from email service' };
+    }
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('Error sending quote email:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Notify the business that a customer accepted or declined a quote.
+ */
+export async function sendQuoteDecisionAdminNotification(data: {
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  storeName: string;
+  storeSlug: string;
+  amount: number;
+  decision: 'ACCEPTED' | 'DECLINED';
+}) {
+  try {
+    const { customerName, customerEmail, customerPhone, storeName, storeSlug, amount, decision } = data;
+    const safeName = escapeHtml(customerName);
+    const safeEmail = escapeHtml(customerEmail);
+    const safePhone = escapeHtml(customerPhone);
+    const safeStoreName = escapeHtml(storeName);
+    const formattedAmount = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(amount);
+    const accepted = decision === 'ACCEPTED';
+    const color = accepted ? '#10b981' : '#ef4444';
+    const emoji = accepted ? '✅' : '❌';
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:${color};color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">${emoji}</div>
+          <h1 style="margin:0;font-size:20px;">Quote ${accepted ? 'Accepted' : 'Declined'}</h1>
+          <p style="margin:6px 0 0;opacity:0.9;font-size:13px;">${safeStoreName}</p>
+        </div>
+        <div style="background:white;padding:20px;border-radius:12px;margin-bottom:16px;border:1px solid #e5e7eb;">
+          <p style="margin:8px 0;font-size:14px;"><strong>Customer:</strong> ${safeName}</p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Phone:</strong> <a href="tel:${safePhone}" style="color:${color};font-weight:bold;">${safePhone}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Email:</strong> <a href="mailto:${safeEmail}" style="color:${color};">${safeEmail}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Quoted Amount:</strong> ${formattedAmount}</p>
+        </div>
+        <div style="text-align:center;margin:20px 0;">
+          <a href="${APP_URL}/admin/${storeSlug}" style="background:${color};color:white;padding:14px 28px;border-radius:8px;text-decoration:none;display:inline-block;font-weight:bold;font-size:15px;">
+            View in Admin Dashboard
+          </a>
+        </div>
+      </div>
+    `;
+
+    const result = await resend.emails.send({
+      from: SENDER_ADDRESS,
+      to: ADMIN_NOTIFY_EMAIL,
+      replyTo: customerEmail,
+      subject: `Quote ${accepted ? 'Accepted' : 'Declined'}: ${customerName}`,
+      html: emailHtml,
+    });
+
+    if (!result.data?.id) {
+      console.error('Resend rejected quote decision admin notification:', result.error);
+      return { success: false, error: result.error?.message || 'No message ID returned from email service' };
+    }
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('Error sending quote decision admin notification:', error);
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Confirm to the customer that their quote decision was received.
+ */
+export async function sendQuoteDecisionCustomerConfirmation(data: {
+  customerName: string;
+  customerEmail: string;
+  storeName: string;
+  decision: 'ACCEPTED' | 'DECLINED';
+}) {
+  try {
+    const { customerName, customerEmail, storeName, decision } = data;
+    const safeName = escapeHtml(customerName);
+    const safeStoreName = escapeHtml(storeName);
+    const accepted = decision === 'ACCEPTED';
+    const color = accepted ? '#10b981' : '#64748b';
+
+    const emailHtml = `
+      <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
+        <div style="background:${color};color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
+          <div style="font-size:32px;margin-bottom:8px;">${accepted ? '🎉' : '👍'}</div>
+          <h1 style="margin:0;font-size:20px;">Your Response Was Received</h1>
+        </div>
+        <div style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #e5e7eb;">
+          <p style="margin:0 0 12px;color:#374151;font-size:14px;">Dear <strong>${safeName}</strong>,</p>
+          ${accepted
+            ? `<p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">Thank you for accepting your quote from <strong>${safeStoreName}</strong>. Our team has been notified and will be in touch shortly to schedule your service.</p>`
+            : `<p style="margin:0;color:#374151;font-size:14px;line-height:1.7;">We've recorded that you've declined the quote from <strong>${safeStoreName}</strong>. Thank you for considering us — feel free to reach out if anything changes.</p>`}
+        </div>
+        <div style="color:#6b7280;font-size:13px;border-top:1px solid #e5e7eb;padding-top:16px;text-align:center;">
+          <p style="margin:0 0 4px;"><strong>${safeStoreName} Team</strong></p>
+          <a href="${APP_URL}" style="color:#10b981;text-decoration:none;">${APP_URL.replace(/^https?:\/\//, '')}</a>
+        </div>
+      </div>
+    `;
+
+    const result = await resend.emails.send({
+      from: SENDER_ADDRESS,
+      to: customerEmail,
+      bcc: ADMIN_NOTIFY_EMAIL,
+      subject: `We've Received Your Response — ${storeName}`,
+      html: emailHtml,
+    });
+
+    if (!result.data?.id) {
+      console.error('Resend rejected quote decision customer confirmation:', result.error);
+      return { success: false, error: result.error?.message || 'No message ID returned from email service' };
+    }
+    return { success: true, messageId: result.data.id };
+  } catch (error) {
+    console.error('Error sending quote decision customer confirmation:', error);
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
   }
 }

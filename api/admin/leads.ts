@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'crypto';
 import { prisma } from '../_lib/prisma.js';
 import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth.js';
-import { sendClientUpdate } from '../_lib/email.js';
+import { sendClientUpdate, sendQuoteEmail } from '../_lib/email.js';
 
 const VALID_STATUSES = ['NEW', 'CONTACTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
 
@@ -78,9 +79,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
   }
 
-  // ── POST /api/admin/leads/notify — send an update email to the customer ───
-  // Handled via query param: ?action=notify
+  // ── POST /api/admin/leads — send an update or a quote to the customer ─────
   if (req.method === 'POST') {
+    const { action } = req.body;
+
+    // ── Send a quote with an accept/decline link ──────────────────────────
+    if (action === 'sendQuote') {
+      try {
+        const { leadId, storeSlug, amount, message } = req.body;
+
+        if (!leadId || typeof leadId !== 'string') {
+          return res.status(400).json({ error: 'leadId is required' });
+        }
+        if (!storeSlug || typeof storeSlug !== 'string') {
+          return res.status(400).json({ error: 'storeSlug is required' });
+        }
+        const numericAmount = Number(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+          return res.status(400).json({ error: 'A valid quote amount is required' });
+        }
+
+        const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+        if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead || lead.storeId !== store.id) {
+          return res.status(404).json({ error: 'Booking not found' });
+        }
+
+        const token = crypto.randomBytes(24).toString('hex');
+
+        const result = await sendQuoteEmail({
+          customerName: lead.customerName,
+          customerEmail: lead.customerEmail,
+          storeName: store.name,
+          amount: numericAmount,
+          message: typeof message === 'string' ? message : undefined,
+          token,
+        });
+
+        if (!result.success) {
+          return res.status(500).json({ error: result.error || 'Failed to send quote email' });
+        }
+
+        const updated = await prisma.lead.update({
+          where: { id: leadId },
+          data: {
+            quoteAmount: numericAmount,
+            quoteMessage: typeof message === 'string' ? message : null,
+            quoteToken: token,
+            quoteStatus: 'SENT',
+            quoteSentAt: new Date(),
+            quoteRespondedAt: null,
+          },
+        });
+
+        return res.json({ success: true, messageId: result.messageId, lead: updated });
+      } catch (error) {
+        console.error('Error sending quote:', error);
+        return res.status(500).json({ error: 'Failed to send quote' });
+      }
+    }
+
+    // ── Default: send a status/general update email to the customer ───────
     try {
       const { leadId, storeSlug, message, newStatus } = req.body;
 

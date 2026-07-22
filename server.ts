@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
-import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate, sendTestEmail } from "./api/_lib/email";
+import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate, sendTestEmail, sendQuoteEmail, sendQuoteDecisionAdminNotification, sendQuoteDecisionCustomerConfirmation } from "./api/_lib/email";
 import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
 import { getSupabaseAdmin, MEDIA_BUCKET } from "./api/_lib/supabase";
 import crypto from "crypto";
@@ -568,11 +568,64 @@ async function startServer() {
     }
   });
 
-  // Admin: Send a status-update email to the customer
+  // Admin: Send a status-update email to the customer, or a quote (action: 'sendQuote')
   app.post("/api/admin/leads", async (req, res) => {
+    const providedPassword = req.headers['x-admin-password'] as string | undefined;
+    const { action } = req.body;
+
+    if (action === 'sendQuote') {
+      try {
+        const { leadId, storeSlug, amount, message } = req.body;
+
+        if (!leadId || typeof leadId !== 'string') return res.status(400).json({ error: 'leadId is required' });
+        if (!storeSlug || typeof storeSlug !== 'string') return res.status(400).json({ error: 'storeSlug is required' });
+        const numericAmount = Number(amount);
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+          return res.status(400).json({ error: 'A valid quote amount is required' });
+        }
+
+        const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+        if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+          return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+        if (!lead || lead.storeId !== store.id) return res.status(404).json({ error: 'Booking not found' });
+
+        const token = crypto.randomBytes(24).toString('hex');
+
+        const result = await sendQuoteEmail({
+          customerName: lead.customerName,
+          customerEmail: lead.customerEmail,
+          storeName: store.name,
+          amount: numericAmount,
+          message: typeof message === 'string' ? message : undefined,
+          token,
+        });
+
+        if (!result.success) return res.status(500).json({ error: result.error || 'Failed to send quote email' });
+
+        const updated = await prisma.lead.update({
+          where: { id: leadId },
+          data: {
+            quoteAmount: numericAmount,
+            quoteMessage: typeof message === 'string' ? message : null,
+            quoteToken: token,
+            quoteStatus: 'SENT',
+            quoteSentAt: new Date(),
+            quoteRespondedAt: null,
+          },
+        });
+
+        return res.json({ success: true, messageId: result.messageId, lead: updated });
+      } catch (error) {
+        console.error("Error sending quote:", error);
+        return res.status(500).json({ error: "Failed to send quote" });
+      }
+    }
+
     try {
       const { leadId, storeSlug, message, newStatus } = req.body;
-      const providedPassword = req.headers['x-admin-password'] as string | undefined;
 
       if (!leadId || !storeSlug || !message) {
         return res.status(400).json({ error: 'leadId, storeSlug, and message are required' });
@@ -604,6 +657,81 @@ async function startServer() {
     } catch (error) {
       console.error("Error sending client update:", error);
       res.status(500).json({ error: "Failed to send client update" });
+    }
+  });
+
+  // Public: fetch quote details by token
+  app.get("/api/quote", async (req, res) => {
+    try {
+      const { token } = req.query;
+      if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token is required' });
+
+      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      if (!lead) return res.status(404).json({ error: 'Quote not found' });
+
+      res.json({
+        customerName: lead.customerName,
+        storeName: lead.store.name,
+        amount: lead.quoteAmount,
+        message: lead.quoteMessage,
+        status: lead.quoteStatus,
+        respondedAt: lead.quoteRespondedAt,
+      });
+    } catch (error) {
+      console.error("Error fetching quote:", error);
+      res.status(500).json({ error: "Failed to fetch quote" });
+    }
+  });
+
+  // Public: accept or decline a quote
+  app.post("/api/quote", async (req, res) => {
+    try {
+      const { token, action } = req.body;
+      if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token is required' });
+      if (action !== 'accept' && action !== 'decline') {
+        return res.status(400).json({ error: 'action must be "accept" or "decline"' });
+      }
+
+      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      if (!lead) return res.status(404).json({ error: 'Quote not found' });
+      if (lead.quoteStatus !== 'SENT') {
+        return res.json({ success: true, status: lead.quoteStatus, alreadyResponded: true });
+      }
+
+      const decision = action === 'accept' ? 'ACCEPTED' : 'DECLINED';
+
+      const updated = await prisma.lead.update({
+        where: { id: lead.id },
+        data: { quoteStatus: decision, quoteRespondedAt: new Date() },
+      });
+
+      const amount = lead.quoteAmount ? Number(lead.quoteAmount) : 0;
+
+      const [adminResult, customerResult] = await Promise.allSettled([
+        sendQuoteDecisionAdminNotification({
+          customerName: lead.customerName,
+          customerEmail: lead.customerEmail,
+          customerPhone: lead.customerPhone,
+          storeName: lead.store.name,
+          storeSlug: lead.store.slug,
+          amount,
+          decision,
+        }),
+        sendQuoteDecisionCustomerConfirmation({
+          customerName: lead.customerName,
+          customerEmail: lead.customerEmail,
+          storeName: lead.store.name,
+          decision,
+        }),
+      ]);
+
+      if (adminResult.status === 'rejected') console.error('Failed to send quote decision admin notification:', adminResult.reason);
+      if (customerResult.status === 'rejected') console.error('Failed to send quote decision customer confirmation:', customerResult.reason);
+
+      res.json({ success: true, status: updated.quoteStatus });
+    } catch (error) {
+      console.error("Error recording quote decision:", error);
+      res.status(500).json({ error: "Failed to record your response" });
     }
   });
 

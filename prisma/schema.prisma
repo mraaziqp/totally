@@ -113,18 +113,24 @@ model Order {
 }
 
 model Lead {
-  id            String   @id @default(cuid())
-  storeId       String
-  store         Store    @relation(fields: [storeId], references: [id])
-  customerName  String
-  customerEmail String
-  customerPhone String
-  location      String
-  status        String   @default("NEW")
-  requestedDate DateTime?
-  notes         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String    @id @default(cuid())
+  storeId           String
+  store             Store     @relation(fields: [storeId], references: [id])
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  location          String
+  status            String    @default("NEW")
+  requestedDate     DateTime?
+  notes             String?
+  quoteAmount       Decimal?
+  quoteMessage      String?
+  quoteToken        String?   @unique
+  quoteStatus       String    @default("NONE")
+  quoteSentAt       DateTime?
+  quoteRespondedAt  DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([storeId])
 }

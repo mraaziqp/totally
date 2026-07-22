@@ -31,7 +31,8 @@ import {
   EyeOff,
   LayoutTemplate,
   Type,
-  Move
+  Move,
+  DollarSign
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { uploadImage } from '../../lib/uploadImage';
@@ -123,6 +124,10 @@ export default function TenantDashboard() {
   const [clientUpdateStatus, setClientUpdateStatus] = useState('');
   const [sendingUpdate, setSendingUpdate] = useState(false);
   const [savingLeadStatus, setSavingLeadStatus] = useState(false);
+  const [quoteAmountInput, setQuoteAmountInput] = useState('');
+  const [quoteMessageInput, setQuoteMessageInput] = useState('');
+  const [sendingQuote, setSendingQuote] = useState(false);
+  const [quoteSendStatus, setQuoteSendStatus] = useState('');
 
   // CMS Form State
   const [cmsForm, setCmsForm] = useState({
@@ -691,6 +696,9 @@ export default function TenantDashboard() {
     setEditLeadStatus(lead.status || 'NEW');
     setClientUpdateMsg('');
     setClientUpdateStatus('');
+    setQuoteAmountInput(lead.quoteAmount != null ? String(lead.quoteAmount) : '');
+    setQuoteMessageInput('');
+    setQuoteSendStatus('');
   };
 
   const handleSaveLeadStatus = async () => {
@@ -744,6 +752,42 @@ export default function TenantDashboard() {
       setClientUpdateStatus('error:Network error');
     } finally {
       setSendingUpdate(false);
+    }
+  };
+
+  const handleSendQuote = async () => {
+    if (!selectedLead) return;
+    const amount = Number(quoteAmountInput);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setQuoteSendStatus('error:Enter a valid quote amount');
+      return;
+    }
+    setSendingQuote(true);
+    setQuoteSendStatus('');
+    try {
+      const res = await fetch('/api/admin/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({
+          action: 'sendQuote',
+          leadId: selectedLead.id,
+          storeSlug,
+          amount,
+          message: quoteMessageInput,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setQuoteSendStatus('success');
+        setLeads(prev => prev.map(l => l.id === selectedLead.id ? data.lead : l));
+        setSelectedLead(data.lead);
+      } else {
+        setQuoteSendStatus('error:' + (data.error || 'Failed to send quote'));
+      }
+    } catch (e) {
+      setQuoteSendStatus('error:Network error');
+    } finally {
+      setSendingQuote(false);
     }
   };
 
@@ -1581,9 +1625,21 @@ export default function TenantDashboard() {
                                 {lead.requestedDate ? new Date(lead.requestedDate).toLocaleDateString('en-ZA') : 'No date'} • {new Date(lead.createdAt).toLocaleDateString('en-ZA')}
                               </p>
                             </div>
-                            <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border shrink-0 mt-0.5', statusStyles[lead.status] || statusStyles.NEW)}>
-                              {lead.status}
-                            </span>
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', statusStyles[lead.status] || statusStyles.NEW)}>
+                                {lead.status}
+                              </span>
+                              {lead.quoteStatus && lead.quoteStatus !== 'NONE' && (
+                                <span className={cn(
+                                  'px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                                  lead.quoteStatus === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                                    : lead.quoteStatus === 'DECLINED' ? 'bg-slate-100 text-slate-500 border-slate-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-100'
+                                )}>
+                                  Quote: {lead.quoteStatus}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                       );
@@ -1694,6 +1750,67 @@ export default function TenantDashboard() {
                       {clientUpdateStatus.startsWith('error:') && (
                         <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-700 text-sm">
                           <AlertCircle size={16} /> {clientUpdateStatus.replace('error:', '')}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Send quote */}
+                    <div className="space-y-3 border-t border-slate-100 pt-4">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <DollarSign size={12} /> Send Quote
+                      </p>
+                      {selectedLead.quoteStatus && selectedLead.quoteStatus !== 'NONE' && (
+                        <div className={cn(
+                          'text-xs font-bold px-3 py-2 rounded-xl border',
+                          selectedLead.quoteStatus === 'ACCEPTED' ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : selectedLead.quoteStatus === 'DECLINED' ? 'bg-slate-100 text-slate-500 border-slate-200'
+                            : 'bg-amber-50 text-amber-700 border-amber-100'
+                        )}>
+                          {selectedLead.quoteStatus === 'SENT' && `Quote of R${Number(selectedLead.quoteAmount).toFixed(0)} sent — awaiting response`}
+                          {selectedLead.quoteStatus === 'ACCEPTED' && `Quote of R${Number(selectedLead.quoteAmount).toFixed(0)} accepted by customer`}
+                          {selectedLead.quoteStatus === 'DECLINED' && `Quote of R${Number(selectedLead.quoteAmount).toFixed(0)} declined by customer`}
+                        </div>
+                      )}
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">R</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Quote amount"
+                          className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none"
+                          value={quoteAmountInput}
+                          onChange={e => setQuoteAmountInput(e.target.value)}
+                        />
+                      </div>
+                      <textarea
+                        rows={3}
+                        placeholder="Optional message to include with the quote..."
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-400 focus:border-transparent outline-none resize-none"
+                        value={quoteMessageInput}
+                        onChange={e => setQuoteMessageInput(e.target.value)}
+                      />
+                      <button
+                        onClick={handleSendQuote}
+                        disabled={sendingQuote || !quoteAmountInput.trim()}
+                        className={cn(
+                          'w-full py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
+                          sendingQuote || !quoteAmountInput.trim()
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : 'bg-slate-900 text-white hover:bg-slate-800 shadow-lg shadow-slate-900/10'
+                        )}
+                      >
+                        {sendingQuote ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                        {selectedLead.quoteStatus === 'SENT' ? 'Resend Quote' : 'Send Quote'} to {selectedLead.customerName.split(' ')[0]}
+                      </button>
+                      {quoteSendStatus === 'success' && (
+                        <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-xl text-emerald-700 text-sm">
+                          <Check size={16} /> Quote sent successfully!
+                        </div>
+                      )}
+                      {quoteSendStatus.startsWith('error:') && (
+                        <div className="flex items-center gap-2 p-3 bg-red-50 rounded-xl text-red-700 text-sm">
+                          <AlertCircle size={16} /> {quoteSendStatus.replace('error:', '')}
                         </div>
                       )}
                     </div>

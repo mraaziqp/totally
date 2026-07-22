@@ -9,6 +9,7 @@ import PressureCleaning from './pages/services/PressureCleaning';
 import Gifting from './pages/services/Gifting';
 import AdminDashboard from './pages/admin/Dashboard';
 import TenantDashboard from './pages/admin/TenantDashboard';
+import QuoteResponse from './pages/QuoteResponse';
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/services/deep-cleaning" element={<DeepCleaning />} />
         <Route path="/services/pressure-cleaning" element={<PressureCleaning />} />
         <Route path="/services/gifting" element={<Gifting />} />
+        <Route path="/quote/:token" element={<QuoteResponse />} />
 
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminDashboard />} />
