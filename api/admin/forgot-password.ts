@@ -29,13 +29,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Generate a secure 8-character temporary password
     const tempPassword = crypto.randomBytes(4).toString('hex');
 
-    // Hash and save the temporary password to the database
-    await prisma.store.update({
-      where: { slug: storeSlug },
-      data: { password: hashPassword(tempPassword) },
-    });
-
-    // Send the password reset email using Resend
+    // Send the email FIRST — only persist the new password if it actually
+    // sends. Otherwise a Resend outage would silently invalidate the old
+    // password with no way to recover it.
     const emailResult = await sendPasswordResetEmail(
       store.name,
       store.slug,
@@ -47,6 +43,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       console.error(`Failed to send password reset email: ${emailResult.error}`);
       return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
     }
+
+    await prisma.store.update({
+      where: { slug: storeSlug },
+      data: { password: hashPassword(tempPassword) },
+    });
 
     // Mask the email address in the response for security, e.g., d***g@gmail.com
     const [localPart, domain] = notifyEmail.split('@');

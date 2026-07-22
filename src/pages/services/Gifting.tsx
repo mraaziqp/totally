@@ -8,16 +8,21 @@ import OrderInquiryForm from '../../components/OrderInquiryForm';
 export default function Gifting() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch('/api/stores/gifting')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Store API returned ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         setStoreData(data);
         setLoading(false);
       })
       .catch(err => {
         console.error('Error fetching store data:', err);
+        setLoadError(true);
         setLoading(false);
       });
   }, []);
@@ -34,6 +39,10 @@ export default function Gifting() {
       meta.setAttribute('content', storeData.pageDescription);
     }
   }, [storeData]);
+
+  const featuredTestimonial = Array.isArray(storeData?.testimonials)
+    ? (storeData.testimonials as any[]).find(t => t.isPublished)
+    : undefined;
 
   const categories = [
     {
@@ -70,6 +79,11 @@ export default function Gifting() {
 
   return (
     <div className="min-h-screen bg-slate-50 overflow-x-hidden">
+      {loadError && (
+        <div className="bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-2 px-4">
+          We're having trouble loading live content right now. Some details on this page may be out of date — please call or WhatsApp {storeData?.contactPhone || "0718789141"} to order directly.
+        </div>
+      )}
       {/* Navbar */}
       <nav className="bg-white border-b border-slate-100 py-3 px-4 sm:px-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -91,12 +105,13 @@ export default function Gifting() {
 
       {/* Hero Section */}
       <section className="relative pt-8 pb-16 px-4 sm:px-6 bg-white overflow-hidden">
-        {storeData?.heroImageUrl && (
+        {storeData?.heroImageUrl && storeData?.heroImageEnabled !== false && (
           <div className="absolute inset-0 z-0">
-             <img 
-               src={storeData.heroImageUrl} 
-               referrerPolicy="no-referrer" 
-               className="w-full h-full object-cover opacity-10 blur-sm scale-110" 
+             <img
+               src={storeData.heroImageUrl}
+               referrerPolicy="no-referrer"
+               className="w-full h-full object-cover blur-sm scale-110"
+               style={{ opacity: (storeData?.heroImageOpacity ?? 10) / 100 }}
                alt="Gifting Hero"
              />
              <div className="absolute inset-0 bg-gradient-to-b from-white via-white/70 to-slate-50" />
@@ -129,7 +144,7 @@ export default function Gifting() {
                   </div>
                   <div>
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Studio Line</p>
-                    <p className="text-base font-bold text-slate-800">{storeData?.contactPhone || "[Insert Phone Number]"}</p>
+                    <p className="text-base font-bold text-slate-800">{storeData?.contactPhone || "0718789141"}</p>
                   </div>
                </div>
                <div className="flex items-center gap-3">
@@ -138,7 +153,7 @@ export default function Gifting() {
                   </div>
                   <div>
                     <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">Bulk Inquiries</p>
-                    <p className="text-base font-bold text-slate-800 break-all">{storeData?.contactEmail || "info@totally.co.za"}</p>
+                    <p className="text-base font-bold text-slate-800 break-all">{storeData?.contactEmail || "cleandeep.cpt@gmail.com"}</p>
                   </div>
                </div>
             </div>
@@ -329,14 +344,19 @@ export default function Gifting() {
                    <Star className="text-rose-400 opacity-20" size={100} fill="currentColor" />
                 </div>
                 
-                {storeData?.testimonialText ? (
+                {featuredTestimonial ? (
                   <div className="relative z-10">
+                    <div className="flex items-center justify-center gap-1 mb-4">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <Star key={i} size={14} className={i <= featuredTestimonial.rating ? 'text-amber-400 fill-current' : 'text-rose-200 fill-current'} />
+                      ))}
+                    </div>
                     <p className="text-2xl text-slate-800 font-medium italic leading-relaxed mb-8">
-                       "{storeData.testimonialText}"
+                       "{featuredTestimonial.quote}"
                     </p>
                     <div>
-                       <p className="font-bold text-slate-900 text-xl">{storeData.testimonialAuthor || "Verified Studio Client"}</p>
-                       <p className="text-rose-500 font-bold uppercase tracking-widest text-xs mt-1">{storeData.testimonialAuthorRole || "Premium Partner"}</p>
+                       <p className="font-bold text-slate-900 text-xl">{featuredTestimonial.authorName}</p>
+                       {featuredTestimonial.authorRole && <p className="text-rose-500 font-bold uppercase tracking-widest text-xs mt-1">{featuredTestimonial.authorRole}</p>}
                     </div>
                   </div>
                 ) : (
@@ -350,6 +370,34 @@ export default function Gifting() {
           </div>
         </div>
       </section>
+
+      {/* Custom Content — freeform blocks added via the admin Page Builder */}
+      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
+        <section className="relative py-16 px-4 sm:px-6 bg-white border-t border-slate-100 overflow-hidden">
+          <div className="max-w-7xl mx-auto relative" style={{ minHeight: 560 }}>
+            {(storeData.customBlocks as any[]).map((block) => (
+              <div key={block.id} className="absolute" style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}>
+                {block.type === 'text' ? (
+                  <p
+                    className={cn(
+                      'whitespace-pre-wrap break-words font-medium',
+                      block.fontSize === 'sm' && 'text-sm',
+                      block.fontSize === 'md' && 'text-base',
+                      block.fontSize === 'lg' && 'text-xl',
+                      block.fontSize === 'xl' && 'text-3xl font-bold'
+                    )}
+                    style={{ color: block.color || '#1e293b' }}
+                  >
+                    {block.content}
+                  </p>
+                ) : (
+                  <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6">

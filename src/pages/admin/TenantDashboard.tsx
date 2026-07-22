@@ -147,16 +147,14 @@ export default function TenantDashboard() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch Leads
-      const leadsRes = await fetch(`/api/admin/leads?storeSlug=${storeSlug}`, {
-        headers: { 'x-admin-password': password },
-      });
-      const leadsData = await leadsRes.json();
+      // Fetch leads and store info in parallel — independent requests, no
+      // reason to wait for one before starting the other.
+      const [leadsRes, storeRes] = await Promise.all([
+        fetch(`/api/admin/leads?storeSlug=${storeSlug}`, { headers: { 'x-admin-password': password } }),
+        fetch(`/api/stores/${storeSlug}`),
+      ]);
+      const [leadsData, storeInfo] = await Promise.all([leadsRes.json(), storeRes.json()]);
       setLeads(leadsData);
-
-      // Fetch Store Info
-      const storeRes = await fetch(`/api/stores/${storeSlug}`);
-      const storeInfo = await storeRes.json();
       setStoreData(storeInfo);
 
       // Fetch Services
@@ -213,8 +211,8 @@ export default function TenantDashboard() {
     try {
       const response = await fetch('/api/test-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: testEmail }),
+        headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
+        body: JSON.stringify({ email: testEmail, storeSlug }),
       });
 
       const data = await response.json();

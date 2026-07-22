@@ -11,6 +11,18 @@ const SENDER_ADDRESS = `${SENDER_NAME} <${SENDER_EMAIL}>`;
 // business can see exactly what the customer received.
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'cleandeep.cpt@gmail.com';
 
+// User-supplied values (names, notes, messages) are interpolated directly
+// into HTML emails — escape them so a name/note containing < or & can't
+// break the layout or inject markup.
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export interface BookingEmailData {
   customerName: string;
   customerEmail: string;
@@ -28,6 +40,11 @@ export interface BookingEmailData {
 export async function sendBookingConfirmation(data: BookingEmailData) {
   try {
     const { customerName, customerEmail, location, requestedDate, storeName, notes } = data;
+    const safeName = escapeHtml(customerName);
+    const safeEmail = escapeHtml(customerEmail);
+    const safeLocation = escapeHtml(location);
+    const safeStoreName = escapeHtml(storeName);
+    const safeNotes = notes ? escapeHtml(notes.replace(/(https?:\/\/[^\s]+)/g, '').trim()) : '';
 
     const emailHtml = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
@@ -39,12 +56,12 @@ export async function sendBookingConfirmation(data: BookingEmailData) {
 
         <div style="background:#f3f4f6;padding:20px;border-radius:10px;margin-bottom:20px;">
           <h2 style="color:#1f2937;margin-top:0;">Booking Details</h2>
-          <p style="margin:10px 0;"><strong>Name:</strong> ${customerName}</p>
-          <p style="margin:10px 0;"><strong>Service Provider:</strong> ${storeName}</p>
-          <p style="margin:10px 0;"><strong>Area:</strong> ${location}</p>
+          <p style="margin:10px 0;"><strong>Name:</strong> ${safeName}</p>
+          <p style="margin:10px 0;"><strong>Service Provider:</strong> ${safeStoreName}</p>
+          <p style="margin:10px 0;"><strong>Area:</strong> ${safeLocation}</p>
           ${requestedDate ? `<p style="margin:10px 0;"><strong>Preferred Date:</strong> ${new Date(requestedDate).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>` : ''}
-          <p style="margin:10px 0;"><strong>Contact:</strong> ${customerEmail}</p>
-          ${notes ? `<p style="margin:10px 0;"><strong>Details:</strong> ${notes.replace(/(https?:\/\/[^\s]+)/g, '').trim()}</p>` : ''}
+          <p style="margin:10px 0;"><strong>Contact:</strong> ${safeEmail}</p>
+          ${safeNotes ? `<p style="margin:10px 0;"><strong>Details:</strong> ${safeNotes}</p>` : ''}
         </div>
 
         <div style="background:#fef3c7;border-left:4px solid #f59e0b;padding:15px;margin-bottom:20px;border-radius:5px;">
@@ -91,17 +108,22 @@ export async function sendAdminNotification(data: BookingEmailData) {
   try {
     const { customerName, customerEmail, customerPhone, location, requestedDate, storeName, notes } = data;
     const adminEmail = ADMIN_NOTIFY_EMAIL;
+    const safeName = escapeHtml(customerName);
+    const safeEmail = escapeHtml(customerEmail);
+    const safePhone = escapeHtml(customerPhone);
+    const safeLocation = escapeHtml(location);
+    const safeStoreName = escapeHtml(storeName);
 
     // Split image URLs out of notes for thumbnail rendering
     const urlRegex = /(https?:\/\/[^\s]+)/g;
     const imageUrls: string[] = [];
-    const cleanNotes = (notes || '').replace(urlRegex, (url) => {
+    const cleanNotes = escapeHtml((notes || '').replace(urlRegex, (url) => {
       imageUrls.push(url);
       return '';
-    }).trim();
+    }).trim());
 
     const thumbs = imageUrls
-      .map(url => `<a href="${url}" target="_blank"><img src="${url}" width="90" height="90" style="object-fit:cover;border-radius:6px;border:2px solid #10b981;margin:4px;" /></a>`)
+      .map(url => `<a href="${escapeHtml(url)}" target="_blank"><img src="${escapeHtml(url)}" width="90" height="90" style="object-fit:cover;border-radius:6px;border:2px solid #10b981;margin:4px;" /></a>`)
       .join('');
 
     const emailHtml = `
@@ -109,15 +131,15 @@ export async function sendAdminNotification(data: BookingEmailData) {
         <div style="background:linear-gradient(135deg,#1f2937,#374151);color:white;padding:24px;border-radius:12px;margin-bottom:16px;text-align:center;">
           <div style="font-size:36px;margin-bottom:6px;">📩</div>
           <h1 style="margin:0;font-size:20px;">New Booking Request</h1>
-          <p style="margin:6px 0 0;opacity:0.8;font-size:13px;">${storeName}</p>
+          <p style="margin:6px 0 0;opacity:0.8;font-size:13px;">${safeStoreName}</p>
         </div>
 
         <div style="background:white;padding:20px;border-radius:12px;margin-bottom:12px;border:1px solid #e5e7eb;">
           <h2 style="color:#1f2937;margin-top:0;font-size:15px;border-bottom:2px solid #10b981;padding-bottom:8px;">Customer Details</h2>
-          <p style="margin:8px 0;font-size:14px;"><strong>Name:</strong> ${customerName}</p>
-          <p style="margin:8px 0;font-size:14px;"><strong>Phone:</strong> <a href="tel:${customerPhone}" style="color:#10b981;font-weight:bold;font-size:16px;">${customerPhone}</a></p>
-          <p style="margin:8px 0;font-size:14px;"><strong>Email:</strong> <a href="mailto:${customerEmail}" style="color:#10b981;">${customerEmail}</a></p>
-          <p style="margin:8px 0;font-size:14px;"><strong>Area:</strong> ${location}</p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Name:</strong> ${safeName}</p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Phone:</strong> <a href="tel:${safePhone}" style="color:#10b981;font-weight:bold;font-size:16px;">${safePhone}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Email:</strong> <a href="mailto:${safeEmail}" style="color:#10b981;">${safeEmail}</a></p>
+          <p style="margin:8px 0;font-size:14px;"><strong>Area:</strong> ${safeLocation}</p>
           ${requestedDate ? `<p style="margin:8px 0;font-size:14px;"><strong>Preferred Date:</strong> <span style="color:#10b981;font-weight:bold;">${new Date(requestedDate).toLocaleDateString('en-ZA', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span></p>` : ''}
         </div>
 
@@ -184,8 +206,8 @@ export async function sendTestEmail(toEmail: string) {
           <p style="color:#666;font-size:12px;margin-top:20px;">
             <strong>Email Configuration:</strong><br>
             Service: Resend<br>
-            From: ${SENDER_ADDRESS}<br>
-            To: ${toEmail}
+            From: ${escapeHtml(SENDER_ADDRESS)}<br>
+            To: ${escapeHtml(toEmail)}
           </p>
         </div>
       `,
@@ -209,6 +231,7 @@ export async function sendTestEmail(toEmail: string) {
  */
 export async function sendPasswordResetEmail(storeName: string, storeSlug: string, toEmail: string, temporaryPassword: string) {
   try {
+    const safeStoreName = escapeHtml(storeName);
     const emailHtml = `
       <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">
         <div style="background:#0f172a;color:white;padding:20px;border-radius:10px;margin-bottom:20px;text-align:center;">
@@ -219,7 +242,7 @@ export async function sendPasswordResetEmail(storeName: string, storeSlug: strin
         <div style="background:#f8fafc;padding:25px;border-radius:10px;margin-bottom:20px;border:1px solid #e2e8f0;">
           <p style="margin-top:0;color:#334155;">Hello,</p>
           <p style="color:#334155;line-height:1.6;">
-            A password reset was requested for the admin dashboard of <strong>${storeName}</strong>.
+            A password reset was requested for the admin dashboard of <strong>${safeStoreName}</strong>.
           </p>
           <p style="color:#334155;line-height:1.6;">
             We have generated a secure temporary password for your account:
@@ -277,6 +300,9 @@ export async function sendClientUpdate(data: {
 }) {
   try {
     const { customerName, customerEmail, storeName, message, status } = data;
+    const safeName = escapeHtml(customerName);
+    const safeStoreName = escapeHtml(storeName);
+    const safeMessage = escapeHtml(message);
 
     const statusColors: Record<string, string> = {
       NEW: '#3b82f6',
@@ -293,11 +319,11 @@ export async function sendClientUpdate(data: {
         <div style="background:${statusColor};color:white;padding:24px;border-radius:12px;margin-bottom:20px;text-align:center;">
           <div style="font-size:32px;margin-bottom:8px;">&#128364;</div>
           <h1 style="margin:0;font-size:20px;">Booking Update</h1>
-          <p style="margin:6px 0 0;opacity:0.9;font-size:13px;">${storeName} — Status: ${statusLabel}</p>
+          <p style="margin:6px 0 0;opacity:0.9;font-size:13px;">${safeStoreName} — Status: ${statusLabel}</p>
         </div>
         <div style="background:#f8fafc;padding:20px;border-radius:12px;margin-bottom:20px;border:1px solid #e5e7eb;">
-          <p style="margin:0 0 8px;color:#374151;font-size:14px;">Dear <strong>${customerName}</strong>,</p>
-          <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;">${message}</p>
+          <p style="margin:0 0 8px;color:#374151;font-size:14px;">Dear <strong>${safeName}</strong>,</p>
+          <p style="margin:0;color:#374151;font-size:14px;line-height:1.7;white-space:pre-wrap;">${safeMessage}</p>
         </div>
         <div style="background:#f0fdf4;border-left:4px solid #10b981;padding:15px;border-radius:5px;margin-bottom:20px;">
           <p style="margin:0;color:#065f46;font-size:13px;">
@@ -306,7 +332,7 @@ export async function sendClientUpdate(data: {
           </p>
         </div>
         <div style="color:#6b7280;font-size:13px;border-top:1px solid #e5e7eb;padding-top:16px;text-align:center;">
-          <p style="margin:0 0 4px;"><strong>${storeName} Team</strong></p>
+          <p style="margin:0 0 4px;"><strong>${safeStoreName} Team</strong></p>
           <a href="https://cleandeep.co.za" style="color:#10b981;text-decoration:none;">www.cleandeep.co.za</a>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { getSupabaseAdmin, MEDIA_BUCKET } from './_lib/supabase.js';
+import { prisma } from './_lib/prisma.js';
 
 const ALLOWED_TYPES: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -25,8 +26,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { storeSlug, fileType, dataBase64 } = req.body;
 
-    if (!storeSlug || typeof storeSlug !== 'string') {
+    if (!storeSlug || typeof storeSlug !== 'string' || !/^[a-z0-9-]+$/i.test(storeSlug)) {
       return res.status(400).json({ error: 'storeSlug is required' });
+    }
+    // Confirms the slug is a real unit before writing to storage under its
+    // name — this endpoint is anonymous by design (customers attaching
+    // photos before they're a lead), so this is the only guard available.
+    const store = await prisma.store.findUnique({ where: { slug: storeSlug }, select: { id: true } });
+    if (!store) {
+      return res.status(404).json({ error: 'Store not found' });
     }
     if (!fileType || !ALLOWED_TYPES[fileType]) {
       return res.status(400).json({ error: 'Unsupported image type. Use JPG, PNG, WEBP, or GIF.' });

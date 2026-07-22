@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { Phone, Mail, CheckCircle2, ChevronLeft, Droplets, Waves, Paintbrush, Home as HomeIcon, ArrowLeft, Loader2, Star, Sparkles, Car } from 'lucide-react';
 import BookingForm from '../../components/BookingForm';
+import { cn } from '../../lib/utils';
 
 // Map DB service names → icons
 const SERVICE_ICONS: Record<string, React.ElementType> = {
@@ -21,12 +22,20 @@ const SERVICE_ICONS: Record<string, React.ElementType> = {
 export default function PressureCleaning() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetch('/api/stores/pressure-cleaning')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`Store API returned ${res.status}`);
+        return res.json();
+      })
       .then(data => { setStoreData(data); setLoading(false); })
-      .catch(err => { console.error('Error fetching store data:', err); setLoading(false); });
+      .catch(err => {
+        console.error('Error fetching store data:', err);
+        setLoadError(true);
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -68,6 +77,11 @@ export default function PressureCleaning() {
 
   return (
     <div className="min-h-screen bg-slate-50 overflow-x-hidden">
+      {loadError && (
+        <div className="bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-2 px-4">
+          We're having trouble loading live content right now. Some details on this page may be out of date — please call or WhatsApp {storeData?.contactPhone || "072 359 1276"} to book directly.
+        </div>
+      )}
       {/* Navbar */}
       <nav className="bg-white border-b border-slate-100 py-3 px-4 sm:px-6 sticky top-0 z-50 shadow-sm">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -89,12 +103,13 @@ export default function PressureCleaning() {
 
       {/* Hero Section */}
       <section className="relative pt-8 pb-16 px-4 sm:px-6 overflow-hidden bg-white">
-        {storeData?.heroImageUrl && (
+        {storeData?.heroImageUrl && storeData?.heroImageEnabled !== false && (
           <div className="absolute inset-0 z-0">
-             <img 
-               src={storeData.heroImageUrl} 
-               referrerPolicy="no-referrer" 
-               className="w-full h-full object-cover opacity-10 blur-sm scale-110" 
+             <img
+               src={storeData.heroImageUrl}
+               referrerPolicy="no-referrer"
+               className="w-full h-full object-cover blur-sm scale-110"
+               style={{ opacity: (storeData?.heroImageOpacity ?? 10) / 100 }}
                alt="Pressure Hero"
              />
              <div className="absolute inset-0 bg-gradient-to-b from-white via-white/80 to-slate-50" />
@@ -125,7 +140,7 @@ export default function PressureCleaning() {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Contact Phone</p>
-                  <p className="text-base font-bold text-slate-800">{storeData?.contactPhone || "[Insert Client Phone Number]"}</p>
+                  <p className="text-base font-bold text-slate-800">{storeData?.contactPhone || "072 359 1276"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -134,7 +149,7 @@ export default function PressureCleaning() {
                 </div>
                 <div>
                   <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Email Support</p>
-                  <p className="text-base font-bold text-slate-800 break-all">{storeData?.contactEmail || "info@totally.co.za"}</p>
+                  <p className="text-base font-bold text-slate-800 break-all">{storeData?.contactEmail || "cleandeep.cpt@gmail.com"}</p>
                 </div>
               </div>
             </div>
@@ -225,55 +240,88 @@ export default function PressureCleaning() {
         </section>
       )}
 
-      {/* Trust & Stats */}
+      {/* Brand Banner */}
       <section className="py-14 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2 bg-slate-900 rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 md:p-20 text-center relative overflow-hidden flex flex-col justify-center">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />
-                <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white mb-6 relative z-10 leading-tight">
-                  Industrial Power. <br/>
-                  <span className="text-teal-400">TotalLŸ Efficiency.</span>
-                </h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 relative z-10">
-                   {[
-                     { label: "Houses Restored", val: "500+" },
-                     { label: "Client Satisfaction", val: "100%" },
-                     { label: "Eco-Friendly", val: "Pure Water" },
-                     { label: "ZAR Saved", val: "Millions" }
-                   ].map(stat => (
-                     <div key={stat.label}>
-                        <p className="text-3xl font-black text-white mb-1">{stat.val}</p>
-                        <p className="text-teal-400 text-xs font-bold uppercase tracking-widest">{stat.label}</p>
-                     </div>
-                   ))}
-                </div>
-              </div>
-
-              <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-teal-50 p-12 rounded-[3rem] border border-teal-100 relative flex flex-col justify-center shadow-sm"
-              >
-                <div className="absolute -top-6 -right-6 w-20 h-20 bg-teal-500 rounded-full flex items-center justify-center text-white shadow-xl">
-                  <Star size={40} fill="currentColor" />
-                </div>
-                <h3 className="text-xs font-black text-teal-600 mb-8 uppercase tracking-[0.2em] opacity-60">Verified Feedback</h3>
-                <p className="text-2xl text-slate-800 font-medium italic leading-relaxed mb-10">
-                  "{storeData?.testimonialText || "The pressure cleaning results were beyond my expectations. Years of grime disappeared in just a few hours. Truly professional work."}"
-                </p>
-                <div className="flex items-center gap-5">
-                  <div className="w-16 h-16 rounded-2xl bg-teal-500 flex items-center justify-center text-white font-bold text-xl">
-                     {(storeData?.testimonialAuthor || "JC")[0]}
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-900 text-xl">{storeData?.testimonialAuthor || "James C."}</p>
-                    <p className="text-teal-600 font-bold uppercase tracking-widest text-xs mt-1">{storeData?.testimonialAuthorRole || "Homeowner, CBD"}</p>
-                  </div>
-                </div>
-              </motion.div>
-           </div>
+          <div className="bg-slate-900 rounded-[2rem] sm:rounded-[3rem] p-8 sm:p-12 md:p-20 text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl" />
+            <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold text-white relative z-10 leading-tight">
+              Industrial Power. <br />
+              <span className="text-teal-400">TotalLŸ Efficiency.</span>
+            </h2>
+          </div>
         </div>
       </section>
+
+      {/* Testimonials — real reviews only, managed from the admin dashboard */}
+      {Array.isArray(storeData?.testimonials) && (storeData.testimonials as any[]).filter((t: any) => t.isPublished).length > 0 && (
+        <section className="py-14 px-4 sm:px-6 bg-white border-t border-slate-100">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-10">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 mb-4 text-xs font-bold uppercase tracking-wider text-teal-600 bg-teal-50 rounded-full">
+                <Star size={12} className="fill-current text-teal-600" /> Testimonials
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-bold text-slate-900 tracking-tight">What Our Clients Say</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {(storeData.testimonials as any[])
+                .filter((t: any) => t.isPublished)
+                .map((t: any) => {
+                  const initials = t.authorName.split(' ').map((p: string) => p[0]).slice(0, 2).join('').toUpperCase();
+                  return (
+                    <div key={t.id} className="bg-teal-50 p-8 rounded-[2rem] border border-teal-100 relative flex flex-col shadow-sm">
+                      <div className="flex items-center gap-1 mb-4">
+                        {[1, 2, 3, 4, 5].map(i => (
+                          <Star key={i} size={14} className={i <= t.rating ? 'text-amber-400 fill-current' : 'text-teal-200 fill-current'} />
+                        ))}
+                      </div>
+                      <p className="text-slate-800 font-medium italic leading-relaxed mb-6 flex-1">"{t.quote}"</p>
+                      <div className="flex items-center gap-4">
+                        {t.avatarUrl ? (
+                          <img src={t.avatarUrl} referrerPolicy="no-referrer" alt="" className="w-12 h-12 rounded-2xl object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 rounded-2xl bg-teal-500 flex items-center justify-center text-white font-bold">{initials}</div>
+                        )}
+                        <div>
+                          <p className="font-bold text-slate-900">{t.authorName}</p>
+                          {t.authorRole && <p className="text-teal-600 font-bold uppercase tracking-widest text-[10px] mt-0.5">{t.authorRole}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Custom Content — freeform blocks added via the admin Page Builder */}
+      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
+        <section className="relative py-16 px-4 sm:px-6 bg-white border-t border-slate-100 overflow-hidden">
+          <div className="max-w-7xl mx-auto relative" style={{ minHeight: 560 }}>
+            {(storeData.customBlocks as any[]).map((block) => (
+              <div key={block.id} className="absolute" style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}>
+                {block.type === 'text' ? (
+                  <p
+                    className={cn(
+                      'whitespace-pre-wrap break-words font-medium',
+                      block.fontSize === 'sm' && 'text-sm',
+                      block.fontSize === 'md' && 'text-base',
+                      block.fontSize === 'lg' && 'text-xl',
+                      block.fontSize === 'xl' && 'text-3xl font-bold'
+                    )}
+                    style={{ color: block.color || '#1e293b' }}
+                  >
+                    {block.content}
+                  </p>
+                ) : (
+                  <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6">
@@ -287,8 +335,8 @@ export default function PressureCleaning() {
           <div>
              <h4 className="text-white font-bold mb-4 uppercase tracking-widest">Connect</h4>
              <ul className="space-y-3">
-               <li>info@totally.co.za</li>
-               <li>[Insert Phone Number]</li>
+               <li>{storeData?.contactEmail || "cleandeep.cpt@gmail.com"}</li>
+               <li>{storeData?.contactPhone || "072 359 1276"}</li>
              </ul>
           </div>
           <div className="flex justify-start md:justify-end items-end">

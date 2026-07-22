@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
-import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate } from "./api/_lib/email";
+import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate, sendTestEmail } from "./api/_lib/email";
 import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
 import { getSupabaseAdmin, MEDIA_BUCKET } from "./api/_lib/supabase";
 import crypto from "crypto";
@@ -21,61 +21,152 @@ async function startServer() {
   app.use(express.json({ limit: "10mb" }));
 
   // API Routes
-  
+
+  // Validation helpers — kept in sync with api/leads.ts
+  function isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 254;
+  }
+  function isValidPhone(phone: string): boolean {
+    const phoneRegex = /^[+]?[(]?[0-9]{1,4}[)]?[-\s.]?[(]?[0-9]{1,4}[)]?[-\s.]?[0-9]{1,9}$/;
+    return phoneRegex.test(phone.replace(/\s/g, ''));
+  }
+  function sanitizeString(input: string, maxLen = 5000): string {
+    return input.trim().slice(0, maxLen);
+  }
+
   // Submit a lead (Deep Cleaning / Pressure Cleaning)
   app.post("/api/leads", async (req, res) => {
     try {
       const { customerName, customerEmail, customerPhone, location, requestedDate, storeSlug, notes } = req.body;
 
-      const store = await prisma.store.findUnique({
-        where: { slug: storeSlug }
-      });
-
-      if (!store) {
-        return res.status(404).json({ error: "Store not found" });
+      if (!customerName || !customerEmail || !customerPhone || !location || !storeSlug) {
+        return res.status(400).json({ error: 'Missing required fields: customerName, customerEmail, customerPhone, location, storeSlug' });
       }
+      if (!isValidEmail(customerEmail)) {
+        return res.status(400).json({ error: 'Invalid email address format' });
+      }
+      if (!isValidPhone(customerPhone)) {
+        return res.status(400).json({ error: 'Invalid phone number format' });
+      }
+
+      const sanitizedName = sanitizeString(customerName);
+      const sanitizedLocation = sanitizeString(location);
+      const sanitizedSlug = sanitizeString(storeSlug);
+
+      if (sanitizedName.length < 2) {
+        return res.status(400).json({ error: 'Customer name must be at least 2 characters' });
+      }
+      if (sanitizedLocation.length < 2) {
+        return res.status(400).json({ error: 'Location must be at least 2 characters' });
+      }
+
+      const store = await prisma.store.findUnique({
+        where: { slug: sanitizedSlug },
+        select: { id: true, name: true },
+      });
+      if (!store) {
+        return res.status(404).json({ error: `Store not found: ${sanitizedSlug}` });
+      }
+
+      let parsedDate: Date | null = null;
+      if (requestedDate) {
+        const dateObj = new Date(requestedDate);
+        if (isNaN(dateObj.getTime())) {
+          return res.status(400).json({ error: 'Invalid date format' });
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (dateObj < today) {
+          return res.status(400).json({ error: 'Requested date must be today or in the future' });
+        }
+        parsedDate = dateObj;
+      }
+
+      const sanitizedNotes = typeof notes === 'string' && notes.trim() ? sanitizeString(notes) : undefined;
 
       const lead = await prisma.lead.create({
         data: {
-          customerName,
-          customerEmail,
-          customerPhone,
-          location,
-          requestedDate: requestedDate ? new Date(requestedDate) : null,
-          notes: notes || null,
+          customerName: sanitizedName,
+          customerEmail: customerEmail.toLowerCase(),
+          customerPhone: customerPhone.trim(),
+          location: sanitizedLocation,
+          requestedDate: parsedDate,
+          notes: sanitizedNotes,
           storeId: store.id,
-          status: "NEW"
-        }
+          status: "NEW",
+        },
       });
 
-      // Send confirmation email to customer
-      await sendBookingConfirmation({
-        customerName,
-        customerEmail,
-        customerPhone,
-        location,
+      const emailPayload = {
+        customerName: sanitizedName,
+        customerEmail: customerEmail.toLowerCase(),
+        customerPhone: customerPhone.trim(),
+        location: sanitizedLocation,
         requestedDate,
-        storeSlug,
+        storeSlug: sanitizedSlug,
         storeName: store.name,
-        notes,
-      });
+        notes: sanitizedNotes,
+      };
 
-      // Send admin notification
-      await sendAdminNotification({
-        customerName,
-        customerEmail,
-        customerPhone,
-        location,
-        requestedDate,
-        storeSlug,
-        storeName: store.name,
-        notes,
-      });
+      const [confResult, adminResult] = await Promise.allSettled([
+        sendBookingConfirmation(emailPayload),
+        sendAdminNotification(emailPayload),
+      ]);
+      if (confResult.status === 'rejected') {
+        console.error('Booking confirmation email failed:', confResult.reason);
+      } else {
+        console.log('Booking confirmation email sent:', confResult.value);
+      }
+      if (adminResult.status === 'rejected') {
+        console.error('Admin notification email failed:', adminResult.reason);
+      } else {
+        console.log('Admin notification email sent:', adminResult.value);
+      }
 
-      res.status(201).json(lead);
+      res.status(201).json({ success: true, message: 'Booking request received successfully', data: lead });
     } catch (error) {
       console.error("Error creating lead:", error);
-      res.status(500).json({ error: "Failed to create lead" });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('Unique constraint failed')) {
+        return res.status(409).json({ error: 'A booking with this email already exists' });
+      }
+      res.status(500).json({ error: "Failed to create booking request. Please try again later." });
+    }
+  });
+
+  // Admin: Send a test email to verify Resend configuration
+  app.post("/api/test-email", async (req, res) => {
+    try {
+      const { email, storeSlug } = req.body;
+      const providedPassword = req.headers['x-admin-password'] as string | undefined;
+
+      if (!storeSlug || typeof storeSlug !== 'string') {
+        return res.status(400).json({ error: 'storeSlug is required' });
+      }
+      const store = await prisma.store.findUnique({ where: { slug: storeSlug } });
+      if (!store || !(verifyStoreAccess(providedPassword, store) || verifyMasterAccess(providedPassword))) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+      if (!email) {
+        return res.status(400).json({ error: 'Email address required' });
+      }
+
+      const result = await sendTestEmail(email);
+      if (result.success) {
+        res.status(200).json({
+          success: true,
+          message: 'Test email sent successfully',
+          messageId: result.messageId,
+          sentTo: email,
+          timestamp: new Date().toISOString(),
+        });
+      } else {
+        res.status(500).json({ success: false, error: result.error });
+      }
+    } catch (error) {
+      console.error("Error sending test email:", error);
+      res.status(500).json({ success: false, error: error instanceof Error ? error.message : "Failed to send test email" });
     }
   });
 
@@ -147,8 +238,10 @@ async function startServer() {
 
       // Generate a secure 8-character temporary password
       const tempPassword = crypto.randomBytes(4).toString('hex');
-      await prisma.store.update({ where: { slug: storeSlug }, data: { password: hashPassword(tempPassword) } });
 
+      // Send the email FIRST — only persist the new password if it actually
+      // sends. Otherwise a Resend outage would silently invalidate the old
+      // password with no way to recover it.
       const emailResult = await sendPasswordResetEmail(
         store.name,
         store.slug,
@@ -160,6 +253,8 @@ async function startServer() {
         console.error(`Failed to send password reset email: ${emailResult.error}`);
         return res.status(500).json({ error: 'Failed to send reset email. Please try again later.' });
       }
+
+      await prisma.store.update({ where: { slug: storeSlug }, data: { password: hashPassword(tempPassword) } });
 
       const [localPart, domain] = notifyEmail.split('@');
       const maskedLocal = localPart.length > 2
