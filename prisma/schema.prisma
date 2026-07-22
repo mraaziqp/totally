@@ -26,6 +26,9 @@ model Store {
   heroImageOpacity       Int       @default(10)
   aboutImageUrl          String?
   customBlocks           Json?
+  pageBackgroundImageUrl String?
+  pageBackgroundEnabled  Boolean   @default(false)
+  pageBackgroundOpacity  Int       @default(15)
   servicesHeadline       String?   @default("Our Specialised Services")
   servicesDescription    String?
   aboutHeading           String?   @default("Our Journey & Core Values")

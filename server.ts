@@ -653,6 +653,9 @@ async function startServer() {
         heroImageOpacity,
         aboutImageUrl,
         customBlocks,
+        pageBackgroundImageUrl,
+        pageBackgroundEnabled,
+        pageBackgroundOpacity,
         servicesHeadline,
         servicesDescription,
         aboutHeading,
@@ -691,6 +694,15 @@ async function startServer() {
       }
       if (aboutImageUrl !== undefined) updateData.aboutImageUrl = aboutImageUrl;
       if (customBlocks !== undefined) updateData.customBlocks = customBlocks;
+      if (pageBackgroundImageUrl !== undefined) updateData.pageBackgroundImageUrl = pageBackgroundImageUrl;
+      if (pageBackgroundEnabled !== undefined) updateData.pageBackgroundEnabled = Boolean(pageBackgroundEnabled);
+      if (pageBackgroundOpacity !== undefined) {
+        const bgOpacity = Number(pageBackgroundOpacity);
+        if (!Number.isFinite(bgOpacity)) {
+          return res.status(400).json({ error: 'pageBackgroundOpacity must be a number' });
+        }
+        updateData.pageBackgroundOpacity = Math.min(100, Math.max(0, Math.round(bgOpacity)));
+      }
       if (servicesHeadline !== undefined) updateData.servicesHeadline = servicesHeadline;
       if (servicesDescription !== undefined) updateData.servicesDescription = servicesDescription;
       if (aboutHeading !== undefined) updateData.aboutHeading = aboutHeading;

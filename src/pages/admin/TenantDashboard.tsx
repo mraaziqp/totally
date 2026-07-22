@@ -96,6 +96,13 @@ export default function TenantDashboard() {
   const [blocksSaveStatus, setBlocksSaveStatus] = useState('');
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const dragRef = React.useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
+  const [pageBackgroundImageUrl, setPageBackgroundImageUrl] = useState('');
+  const [pageBackgroundEnabled, setPageBackgroundEnabled] = useState(false);
+  const [pageBackgroundOpacity, setPageBackgroundOpacity] = useState(15);
+  const [uploadingPageBackground, setUploadingPageBackground] = useState(false);
+  const builderIframeRef = React.useRef<HTMLIFrameElement>(null);
+  const [builderIframeHeight, setBuilderIframeHeight] = useState(2200);
+  const [builderPreviewKey, setBuilderPreviewKey] = useState(0);
   const [testEmail, setTestEmail] = useState('');
   const [emailStatus, setEmailStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
@@ -190,6 +197,9 @@ export default function TenantDashboard() {
       setGalleryImages(Array.isArray(storeInfo.galleryImages) ? storeInfo.galleryImages : []);
       setTestimonials(Array.isArray(storeInfo.testimonials) ? storeInfo.testimonials : []);
       setCustomBlocks(Array.isArray(storeInfo.customBlocks) ? storeInfo.customBlocks : []);
+      setPageBackgroundImageUrl(storeInfo.pageBackgroundImageUrl || '');
+      setPageBackgroundEnabled(storeInfo.pageBackgroundEnabled === true);
+      setPageBackgroundOpacity(storeInfo.pageBackgroundOpacity ?? 15);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -502,6 +512,51 @@ export default function TenantDashboard() {
     }
   };
 
+  const uploadPageBackground = async (file: File) => {
+    setUploadingPageBackground(true);
+    setUploadError('');
+    try {
+      const url = await uploadImage(file, storeSlug!, password, 'page-background');
+      setPageBackgroundImageUrl(url);
+      setPageBackgroundEnabled(true);
+    } catch (error) {
+      setUploadError((error as Error).message || 'Failed to upload image');
+    } finally {
+      setUploadingPageBackground(false);
+    }
+  };
+
+  const getLivePagePath = (slug?: string) => {
+    if (slug === 'pressure-cleaning') return '/services/pressure-cleaning';
+    if (slug === 'gifting') return '/services/gifting';
+    return '/';
+  };
+
+  const measureBuilderIframeHeight = () => {
+    try {
+      const doc = builderIframeRef.current?.contentWindow?.document;
+      if (doc?.documentElement?.scrollHeight) {
+        setBuilderIframeHeight(Math.max(doc.documentElement.scrollHeight, 800));
+      }
+    } catch {
+      // Cross-origin or not-yet-loaded — keep the last known height.
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab !== 'builder') return;
+    // Poll instead of relying solely on the iframe's `load` event — on a fast
+    // local/cached load the browser can fire `load` before React finishes
+    // attaching the listener, so it never fires again for that mount.
+    const interval = setInterval(measureBuilderIframeHeight, 400);
+    const onResize = () => measureBuilderIframeHeight();
+    window.addEventListener('resize', onResize);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('resize', onResize);
+    };
+  }, [activeTab, builderPreviewKey]);
+
   const updateBlock = (id: string, patch: Record<string, any>) => {
     setCustomBlocks(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)));
   };
@@ -554,10 +609,11 @@ export default function TenantDashboard() {
       const response = await fetch(`/api/stores/${storeSlug}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-admin-password': password },
-        body: JSON.stringify({ customBlocks }),
+        body: JSON.stringify({ customBlocks, pageBackgroundImageUrl, pageBackgroundEnabled, pageBackgroundOpacity }),
       });
       if (response.ok) {
         setBlocksSaveStatus('success');
+        setBuilderPreviewKey(k => k + 1);
       } else {
         const data = await response.json().catch(() => ({}));
         setBlocksSaveStatus('error:' + (data.error || 'Failed to publish'));
@@ -1132,13 +1188,78 @@ export default function TenantDashboard() {
 
         {activeTab === 'builder' && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            {/* Page Background */}
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <div>
+                  <h3 className="font-bold text-slate-900 flex items-center gap-2"><ImageIcon size={18} className="text-emerald-500" /> Page Background</h3>
+                  <p className="text-xs text-slate-500 mt-1">A full-page background image behind everything on the site, with adjustable fade.</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPageBackgroundEnabled(!pageBackgroundEnabled)}
+                  className={cn("relative w-12 h-7 rounded-full transition-colors shrink-0", pageBackgroundEnabled ? "bg-emerald-500" : "bg-slate-300")}
+                  title={pageBackgroundEnabled ? "Background image is ON — click to turn off" : "Background image is OFF — click to turn on"}
+                >
+                  <span className={cn("absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform", pageBackgroundEnabled && "translate-x-5")} />
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="w-24 h-24 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shrink-0">
+                  {pageBackgroundImageUrl && (
+                    <img src={pageBackgroundImageUrl} referrerPolicy="no-referrer" alt="Page background preview" className="w-full h-full object-cover" style={{ opacity: pageBackgroundEnabled ? pageBackgroundOpacity / 100 : 1 }} />
+                  )}
+                </div>
+                <div className="flex-1 min-w-[220px] space-y-3">
+                  <label className={cn(
+                    "inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold cursor-pointer transition-all",
+                    uploadingPageBackground ? "bg-slate-200 text-slate-400 cursor-not-allowed" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  )}>
+                    {uploadingPageBackground ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                    {pageBackgroundImageUrl ? 'Replace Image' : 'Upload Image'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="hidden"
+                      disabled={uploadingPageBackground}
+                      onChange={e => {
+                        const file = e.target.files?.[0];
+                        if (file) uploadPageBackground(file);
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest w-14">Fade</span>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={pageBackgroundOpacity}
+                      disabled={!pageBackgroundEnabled}
+                      onChange={e => setPageBackgroundOpacity(Number(e.target.value))}
+                      className="flex-1 accent-emerald-500"
+                    />
+                    <span className="text-xs font-bold text-slate-600 w-10 text-right">{pageBackgroundOpacity}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
                 <div>
                   <h3 className="font-bold text-slate-900 flex items-center gap-2"><LayoutTemplate size={18} className="text-emerald-500" /> Page Builder</h3>
-                  <p className="text-xs text-slate-500 mt-1">Add text and images anywhere in this section, drag them into place, then publish.</p>
+                  <p className="text-xs text-slate-500 mt-1">This is your actual live homepage. Add text or images, then drag them anywhere on the real page below.</p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => { measureBuilderIframeHeight(); setBuilderPreviewKey(k => k + 1); }}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-white border border-slate-200 text-slate-600 hover:border-slate-400 transition-all"
+                  >
+                    Refresh Preview
+                  </button>
                   <button
                     type="button"
                     onClick={addTextBlock}
@@ -1164,54 +1285,56 @@ export default function TenantDashboard() {
               {uploadError && <p className="text-xs font-medium text-rose-600 mb-3">{uploadError}</p>}
 
               <div className={cn("grid gap-6", selectedBlockId ? "grid-cols-1 lg:grid-cols-[1fr_320px]" : "grid-cols-1")}>
-                {/* Canvas */}
-                <div
-                  ref={canvasRef}
-                  onMouseDown={() => setSelectedBlockId(null)}
-                  className="relative w-full rounded-2xl border-2 border-dashed border-slate-300 overflow-hidden select-none"
-                  style={{
-                    height: 560,
-                    backgroundImage: 'linear-gradient(90deg, rgba(148,163,184,0.15) 1px, transparent 1px), linear-gradient(rgba(148,163,184,0.15) 1px, transparent 1px)',
-                    backgroundSize: '24px 24px',
-                    backgroundColor: '#fafafa',
-                  }}
-                >
-                  {customBlocks.length === 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center text-center px-8">
-                      <p className="text-sm text-slate-400 font-medium">
-                        <Move size={22} className="mx-auto mb-2 opacity-40" /><br />
-                        This canvas is empty. Click "Add Text" or "Add Image" above, then drag it anywhere in here.
-                      </p>
-                    </div>
-                  )}
-                  {customBlocks.map(block => (
-                    <div
-                      key={block.id}
-                      onMouseDown={e => handleBlockMouseDown(e, block)}
-                      className={cn(
-                        "absolute cursor-move rounded-lg transition-shadow",
-                        selectedBlockId === block.id ? "ring-2 ring-emerald-500 shadow-lg z-10" : "hover:ring-1 hover:ring-slate-300"
-                      )}
-                      style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}
-                    >
-                      {block.type === 'text' ? (
-                        <p
-                          className={cn(
-                            "px-2 py-1 whitespace-pre-wrap break-words font-medium",
-                            block.fontSize === 'sm' && "text-sm",
-                            block.fontSize === 'md' && "text-base",
-                            block.fontSize === 'lg' && "text-xl",
-                            block.fontSize === 'xl' && "text-3xl font-bold"
-                          )}
-                          style={{ color: block.color || '#1e293b' }}
-                        >
-                          {block.content}
-                        </p>
-                      ) : (
-                        <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg pointer-events-none" draggable={false} />
-                      )}
-                    </div>
-                  ))}
+                {/* Live page preview + drag canvas */}
+                <div className="relative w-full rounded-2xl border-2 border-dashed border-slate-300 overflow-y-auto overflow-x-hidden select-none" style={{ maxHeight: '75vh' }}>
+                  <div
+                    ref={canvasRef}
+                    onMouseDown={() => setSelectedBlockId(null)}
+                    className="relative w-full"
+                    style={{ height: builderIframeHeight }}
+                  >
+                    <iframe
+                      key={builderPreviewKey}
+                      ref={builderIframeRef}
+                      src={getLivePagePath(storeSlug)}
+                      title="Live page preview"
+                      className="absolute inset-0 w-full h-full border-0 pointer-events-none bg-white"
+                      onLoad={measureBuilderIframeHeight}
+                    />
+                    {customBlocks.map(block => (
+                      <div
+                        key={block.id}
+                        onMouseDown={e => handleBlockMouseDown(e, block)}
+                        className={cn(
+                          "absolute cursor-move rounded-lg transition-shadow",
+                          selectedBlockId === block.id ? "ring-2 ring-emerald-500 shadow-lg z-10" : "hover:ring-1 hover:ring-emerald-400"
+                        )}
+                        style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}
+                      >
+                        {block.type === 'text' ? (
+                          <p
+                            className={cn(
+                              "px-2 py-1 whitespace-pre-wrap break-words font-medium bg-white/70 rounded backdrop-blur-sm",
+                              block.fontSize === 'sm' && "text-sm",
+                              block.fontSize === 'md' && "text-base",
+                              block.fontSize === 'lg' && "text-xl",
+                              block.fontSize === 'xl' && "text-3xl font-bold"
+                            )}
+                            style={{ color: block.color || '#1e293b' }}
+                          >
+                            {block.content}
+                          </p>
+                        ) : (
+                          <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg pointer-events-none" draggable={false} />
+                        )}
+                      </div>
+                    ))}
+                    {customBlocks.length === 0 && (
+                      <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 text-white text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2 pointer-events-none">
+                        <Move size={14} /> Click "Add Text" or "Add Image" above, then drag it anywhere on the page
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Selected block properties */}

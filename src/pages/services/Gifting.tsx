@@ -78,7 +78,19 @@ export default function Gifting() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 overflow-x-hidden relative">
+      {storeData?.pageBackgroundEnabled && storeData?.pageBackgroundImageUrl && (
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <img
+            src={storeData.pageBackgroundImageUrl}
+            referrerPolicy="no-referrer"
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ opacity: (storeData?.pageBackgroundOpacity ?? 15) / 100 }}
+          />
+        </div>
+      )}
+      <div className="relative z-10">
       {loadError && (
         <div className="bg-amber-500 text-white text-xs sm:text-sm font-semibold text-center py-2 px-4">
           We're having trouble loading live content right now. Some details on this page may be out of date — please call or WhatsApp {storeData?.contactPhone || "0718789141"} to order directly.
@@ -371,34 +383,6 @@ export default function Gifting() {
         </div>
       </section>
 
-      {/* Custom Content — freeform blocks added via the admin Page Builder */}
-      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
-        <section className="relative py-16 px-4 sm:px-6 bg-white border-t border-slate-100 overflow-hidden">
-          <div className="max-w-7xl mx-auto relative" style={{ minHeight: 560 }}>
-            {(storeData.customBlocks as any[]).map((block) => (
-              <div key={block.id} className="absolute" style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}>
-                {block.type === 'text' ? (
-                  <p
-                    className={cn(
-                      'whitespace-pre-wrap break-words font-medium',
-                      block.fontSize === 'sm' && 'text-sm',
-                      block.fontSize === 'md' && 'text-base',
-                      block.fontSize === 'lg' && 'text-xl',
-                      block.fontSize === 'xl' && 'text-3xl font-bold'
-                    )}
-                    style={{ color: block.color || '#1e293b' }}
-                  >
-                    {block.content}
-                  </p>
-                ) : (
-                  <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       {/* Footer */}
       <footer className="bg-slate-900 text-slate-400 py-12 px-4 sm:px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm text-center md:text-left">
@@ -418,6 +402,33 @@ export default function Gifting() {
            </div>
         </div>
       </footer>
+      </div>
+
+      {/* Custom Content — freeform blocks added via the admin Page Builder, positioned anywhere over the real page */}
+      {Array.isArray(storeData?.customBlocks) && (storeData.customBlocks as any[]).length > 0 && (
+        <div className="absolute inset-0 z-20 pointer-events-none">
+          {(storeData.customBlocks as any[]).map((block) => (
+            <div key={block.id} className="absolute" style={{ left: `${block.x}%`, top: `${block.y}%`, width: `${block.width}%` }}>
+              {block.type === 'text' ? (
+                <p
+                  className={cn(
+                    'whitespace-pre-wrap break-words font-medium',
+                    block.fontSize === 'sm' && 'text-sm',
+                    block.fontSize === 'md' && 'text-base',
+                    block.fontSize === 'lg' && 'text-xl',
+                    block.fontSize === 'xl' && 'text-3xl font-bold'
+                  )}
+                  style={{ color: block.color || '#1e293b' }}
+                >
+                  {block.content}
+                </p>
+              ) : (
+                <img src={block.content} referrerPolicy="no-referrer" alt="" className="w-full h-auto rounded-lg" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
