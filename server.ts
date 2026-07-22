@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { PrismaClient } from "@prisma/client";
 import 'dotenv/config';
 import { sendBookingConfirmation, sendAdminNotification, sendPasswordResetEmail, sendClientUpdate, sendTestEmail, sendQuoteEmail, sendQuoteDecisionAdminNotification, sendQuoteDecisionCustomerConfirmation } from "./api/_lib/email";
-import { hashPassword, verifyStoreAccess, verifyMasterAccess } from "./api/_lib/auth";
+import { hashPassword, verifyStoreAccess, verifyMasterAccess, hashToken } from "./api/_lib/auth";
 import { getSupabaseAdmin, MEDIA_BUCKET } from "./api/_lib/supabase";
 import crypto from "crypto";
 
@@ -610,7 +610,7 @@ async function startServer() {
           data: {
             quoteAmount: numericAmount,
             quoteMessage: typeof message === 'string' ? message : null,
-            quoteToken: token,
+            quoteTokenHash: hashToken(token),
             quoteStatus: 'SENT',
             quoteSentAt: new Date(),
             quoteRespondedAt: null,
@@ -666,7 +666,7 @@ async function startServer() {
       const { token } = req.query;
       if (!token || typeof token !== 'string') return res.status(400).json({ error: 'token is required' });
 
-      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      const lead = await prisma.lead.findUnique({ where: { quoteTokenHash: hashToken(token) }, include: { store: true } });
       if (!lead) return res.status(404).json({ error: 'Quote not found' });
 
       res.json({
@@ -692,7 +692,7 @@ async function startServer() {
         return res.status(400).json({ error: 'action must be "accept" or "decline"' });
       }
 
-      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      const lead = await prisma.lead.findUnique({ where: { quoteTokenHash: hashToken(token) }, include: { store: true } });
       if (!lead) return res.status(404).json({ error: 'Quote not found' });
       if (lead.quoteStatus !== 'SENT') {
         return res.json({ success: true, status: lead.quoteStatus, alreadyResponded: true });

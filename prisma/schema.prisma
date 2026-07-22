@@ -125,7 +125,7 @@ model Lead {
   notes             String?
   quoteAmount       Decimal?
   quoteMessage      String?
-  quoteToken        String?   @unique
+  quoteTokenHash    String?   @unique
   quoteStatus       String    @default("NONE")
   quoteSentAt       DateTime?
   quoteRespondedAt  DateTime?

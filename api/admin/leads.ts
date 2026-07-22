@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import crypto from 'crypto';
 import { prisma } from '../_lib/prisma.js';
-import { verifyStoreAccess, verifyMasterAccess } from '../_lib/auth.js';
+import { verifyStoreAccess, verifyMasterAccess, hashToken } from '../_lib/auth.js';
 import { sendClientUpdate, sendQuoteEmail } from '../_lib/email.js';
 
 const VALID_STATUSES = ['NEW', 'CONTACTED', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
@@ -129,7 +129,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           data: {
             quoteAmount: numericAmount,
             quoteMessage: typeof message === 'string' ? message : null,
-            quoteToken: token,
+            quoteTokenHash: hashToken(token),
             quoteStatus: 'SENT',
             quoteSentAt: new Date(),
             quoteRespondedAt: null,

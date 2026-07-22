@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { prisma } from './_lib/prisma.js';
+import { hashToken } from './_lib/auth.js';
 import { sendQuoteDecisionAdminNotification, sendQuoteDecisionCustomerConfirmation } from './_lib/email.js';
 
 // Public endpoint — the token itself is the authentication. Customers reach
@@ -12,7 +13,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'token is required' });
       }
 
-      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      const lead = await prisma.lead.findUnique({ where: { quoteTokenHash: hashToken(token) }, include: { store: true } });
       if (!lead) {
         return res.status(404).json({ error: 'Quote not found' });
       }
@@ -41,7 +42,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: 'action must be "accept" or "decline"' });
       }
 
-      const lead = await prisma.lead.findUnique({ where: { quoteToken: token }, include: { store: true } });
+      const lead = await prisma.lead.findUnique({ where: { quoteTokenHash: hashToken(token) }, include: { store: true } });
       if (!lead) {
         return res.status(404).json({ error: 'Quote not found' });
       }

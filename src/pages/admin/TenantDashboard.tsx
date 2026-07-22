@@ -71,8 +71,8 @@ export default function TenantDashboard() {
   const [storeData, setStoreData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
-  const [password, setPassword] = useState('totally2026');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [galleryImages, setGalleryImages] = useState<{ url: string; caption: string }[]>([]);
   const [services, setServices] = useState<any[]>([]);

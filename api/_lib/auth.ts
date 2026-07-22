@@ -21,6 +21,16 @@ export function constantTimeEqual(a: string, b: string): boolean {
 }
 
 /**
+ * Hash a high-entropy bearer token (e.g. a quote accept/decline link) for
+ * storage. Unlike passwords, these tokens are already random and unguessable,
+ * so a fast deterministic hash is appropriate — it lets us look the token up
+ * by its hash while never keeping the usable secret itself in the database.
+ */
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
+/**
  * Verifies a provided password against a store's own (hashed) password,
  * falling back to the master ADMIN_PASSWORD for stores that haven't set one yet.
  */
