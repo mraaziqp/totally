@@ -30,7 +30,6 @@ import {
   Eye,
   EyeOff,
   LayoutTemplate,
-  Type,
   Move,
   DollarSign
 } from 'lucide-react';
@@ -494,13 +493,6 @@ export default function TenantDashboard() {
   };
 
   // ── Page Builder: freeform custom content blocks ──────────────────────────
-  const addTextBlock = () => {
-    const id = `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const newBlock = { id, type: 'text', content: 'Double-click to edit this text...', x: 35, y: 40, width: 30, fontSize: 'md', color: '#1e293b' };
-    setCustomBlocks(prev => [...prev, newBlock]);
-    setSelectedBlockId(id);
-  };
-
   const addImageBlock = async (file: File) => {
     const id = `block-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setUploadingBlockId(id);
@@ -1294,7 +1286,7 @@ export default function TenantDashboard() {
               <div className="flex flex-wrap items-center justify-between gap-4 mb-2">
                 <div>
                   <h3 className="font-bold text-slate-900 flex items-center gap-2"><LayoutTemplate size={18} className="text-emerald-500" /> Page Builder</h3>
-                  <p className="text-xs text-slate-500 mt-1">This is your actual live homepage. Add text or images, then drag them anywhere on the real page below.</p>
+                  <p className="text-xs text-slate-500 mt-1">This is your actual live homepage. Add images, then drag them anywhere on the real page below.</p>
                 </div>
                 <div className="flex items-center gap-3">
                   <button
@@ -1304,14 +1296,7 @@ export default function TenantDashboard() {
                   >
                     Refresh Preview
                   </button>
-                  <button
-                    type="button"
-                    onClick={addTextBlock}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all"
-                  >
-                    <Type size={16} /> Add Text
-                  </button>
-                  <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-all cursor-pointer">
+                  <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold bg-slate-900 text-white hover:bg-slate-800 transition-all cursor-pointer">
                     <ImageIcon size={16} /> Add Image
                     <input
                       type="file"
@@ -1375,7 +1360,7 @@ export default function TenantDashboard() {
                     ))}
                     {customBlocks.length === 0 && (
                       <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-slate-900/80 text-white text-xs font-medium px-4 py-2 rounded-full flex items-center gap-2 pointer-events-none">
-                        <Move size={14} /> Click "Add Text" or "Add Image" above, then drag it anywhere on the page
+                        <Move size={14} /> Click "Add Image" above, then drag it anywhere on the page
                       </div>
                     )}
                   </div>
